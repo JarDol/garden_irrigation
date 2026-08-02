@@ -573,8 +573,12 @@ class GardenIrrigationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_zones(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
             self._data.update(user_input)
-            title = "Ogród - Inteligentne Nawadnianie" if self.hass.config.language.startswith("pl") else "Garden - Smart Irrigation"
-            return self.async_create_entry(title=title, data=self._data)
+            # nazwa wyświetlana na karcie integracji pochodzi teraz z
+            # tłumaczonego klucza "config.title" w strings.json/translations -
+            # to jest ten sam mechanizm, z którego korzysta np. integracja
+            # Tapo (stąd widoczna nazwa dostosowuje się do języka HA
+            # automatycznie, bez potrzeby sprawdzania języka tutaj)
+            return self.async_create_entry(title="Garden - Smart Irrigation", data=self._data)
 
         zone_count = int(self._data.get(CONF_ZONE_COUNT, DEFAULT_ZONE_COUNT))
         return self.async_show_form(
