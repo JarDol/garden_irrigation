@@ -1,2 +1,3 @@
-# garden_irrigation
-Integracja HA do inteligentnego nawadniania ogrodu
+__pycache__/
+*.pyc
+.DS_Store
