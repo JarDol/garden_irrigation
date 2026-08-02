@@ -573,7 +573,8 @@ class GardenIrrigationConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_zones(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
             self._data.update(user_input)
-            return self.async_create_entry(title="Ogród - Nawadnianie", data=self._data)
+            title = "Ogród - Inteligentne Nawadnianie" if self.hass.config.language.startswith("pl") else "Garden - Smart Irrigation"
+            return self.async_create_entry(title=title, data=self._data)
 
         zone_count = int(self._data.get(CONF_ZONE_COUNT, DEFAULT_ZONE_COUNT))
         return self.async_show_form(

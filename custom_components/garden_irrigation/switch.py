@@ -22,7 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 def _device_info(entry: ConfigEntry) -> DeviceInfo:
     return DeviceInfo(
         identifiers={(DOMAIN, entry.entry_id)},
-        name="Ogród - Inteligentne Nawadnianie",
+        name=entry.title,
         manufacturer="DIY",
         model="Garden Irrigation",
     )
