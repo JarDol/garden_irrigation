@@ -1,6 +1,6 @@
 {
   "domain": "garden_irrigation",
-  "name": "Garde - Smart Irrigation",
+  "name": "Garden - Smart Irrigation",
   "codeowners": ["@JarDol"],
   "config_flow": true,
   "documentation": "https://github.com/JarDol/garden_irrigation",
