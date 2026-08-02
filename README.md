@@ -2,6 +2,11 @@
 
 *[English version: README.en.md](README.en.md)*
 
+[![Validate with hassfest](https://github.com/JarDol/garden_irrigation/actions/workflows/hassfest.yml/badge.svg)](https://github.com/JarDol/garden_irrigation/actions/workflows/hassfest.yml)
+[![HACS Validation](https://github.com/JarDol/garden_irrigation/actions/workflows/hacs.yml/badge.svg)](https://github.com/JarDol/garden_irrigation/actions/workflows/hacs.yml)
+[![GitHub release](https://img.shields.io/github/v/release/JarDol/garden_irrigation)](https://github.com/JarDol/garden_irrigation/releases)
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+
 Własna integracja Home Assistant do inteligentnego, wieloczujnikowego nawadniania ogrodu.
 Zamiast harmonogramu czasowego, integracja prowadzi dla każdej strefy osobny **bilans wodny
 gleby**: liczy, ile wody roślina traci przez parowanie i transpirację (na podstawie realnych
