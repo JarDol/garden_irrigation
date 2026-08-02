@@ -1,0 +1,512 @@
+title: Garden - Irrigation
+icon: mdi:sprinkler-variant
+views:
+  # ============================================================
+  # TAB 1: MAIN
+  # ============================================================
+  - title: Main
+    path: main
+    icon: mdi:water-pump
+    cards:
+      - type: entities
+        title: Control & status
+        show_header_toggle: false
+        entities:
+          - entity: switch.garden_irrigation_irrigation_paused
+            name: Global switch (holiday mode)
+          - entity: switch.garden_irrigation_dynamic_mad_enabled
+            name: Dynamic MAD adjustment (FAO-56)
+          - entity: sensor.garden_irrigation_sequence_start_time
+            name: Next sequence start
+          - entity: sensor.garden_irrigation_et0_yesterday
+            name: ET0 (yesterday)
+          - entity: binary_sensor.garden_irrigation_any_zone_rain_paused
+            name: Paused due to rain
+
+      - type: entities
+        title: Water usage - whole garden
+        show_header_toggle: false
+        entities:
+          - entity: sensor.garden_irrigation_total_water_today
+            name: Today
+          - entity: sensor.garden_irrigation_total_water_last
+            name: During last watering
+          - entity: sensor.garden_irrigation_total_water_month
+            name: This month
+          - entity: sensor.garden_irrigation_total_water_year
+            name: This year
+
+      - type: entities
+        title: Actions
+        show_header_toggle: false
+        entities:
+          - entity: button.garden_irrigation_approve_all
+            name: Approve all pending zones
+          - entity: button.garden_irrigation_schedule_sunrise_sequence
+            name: Schedule sequence before sunrise
+
+  # ============================================================
+  # TAB 2: SENSORS (diagnostic overview per zone)
+  # ============================================================
+  - title: Sensors
+    path: sensors
+    icon: mdi:chart-box-outline
+    cards:
+      - type: entities
+        title: Zone 1
+        entities:
+          - entity: sensor.garden_irrigation_zone_01_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_01_soil_water_deficit
+            name: Water deficit
+          - entity: sensor.garden_irrigation_zone_01_soil_water_level
+            name: Water in soil
+          - entity: sensor.garden_irrigation_zone_01_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_01_mad_threshold
+            name: MAD threshold
+          - entity: sensor.garden_irrigation_zone_01_min_days_between_watering
+            name: Minimum interval (days)
+          - entity: sensor.garden_irrigation_zone_01_max_runtime
+            name: Maximum watering time
+          - entity: sensor.garden_irrigation_zone_01_area
+            name: Zone area
+          - entity: sensor.garden_irrigation_zone_01_application_rate
+            name: Application rate (effective)
+          - entity: sensor.garden_irrigation_zone_01_water_used_last
+            name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_01_water_used_today
+            name: Water used today
+          - entity: sensor.garden_irrigation_zone_01_water_used_month
+            name: Water used this month
+          - entity: sensor.garden_irrigation_zone_01_water_used_year
+            name: Water used this year
+          - entity: sensor.garden_irrigation_zone_01_projected_soil_water_deficit
+            name: Projected deficit (live)
+          - entity: sensor.garden_irrigation_zone_01_projected_soil_water_level
+            name: Water in soil (live)
+          - entity: sensor.garden_irrigation_zone_01_projected_watering_time
+            name: Projected watering time (live)
+
+      - type: entities
+        title: Zone 2
+        entities:
+          - entity: sensor.garden_irrigation_zone_02_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_02_soil_water_deficit
+            name: Water deficit
+          - entity: sensor.garden_irrigation_zone_02_soil_water_level
+            name: Water in soil
+          - entity: sensor.garden_irrigation_zone_02_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_02_mad_threshold
+            name: MAD threshold
+          - entity: sensor.garden_irrigation_zone_02_min_days_between_watering
+            name: Minimum interval (days)
+          - entity: sensor.garden_irrigation_zone_02_max_runtime
+            name: Maximum watering time
+          - entity: sensor.garden_irrigation_zone_02_area
+            name: Zone area
+          - entity: sensor.garden_irrigation_zone_02_application_rate
+            name: Application rate (effective)
+          - entity: sensor.garden_irrigation_zone_02_water_used_last
+            name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_02_water_used_today
+            name: Water used today
+          - entity: sensor.garden_irrigation_zone_02_water_used_month
+            name: Water used this month
+          - entity: sensor.garden_irrigation_zone_02_water_used_year
+            name: Water used this year
+          - entity: sensor.garden_irrigation_zone_02_projected_soil_water_deficit
+            name: Projected deficit (live)
+          - entity: sensor.garden_irrigation_zone_02_projected_soil_water_level
+            name: Water in soil (live)
+          - entity: sensor.garden_irrigation_zone_02_projected_watering_time
+            name: Projected watering time (live)
+
+      - type: entities
+        title: Zone 3
+        entities:
+          - entity: sensor.garden_irrigation_zone_03_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_03_soil_water_deficit
+            name: Water deficit
+          - entity: sensor.garden_irrigation_zone_03_soil_water_level
+            name: Water in soil
+          - entity: sensor.garden_irrigation_zone_03_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_03_mad_threshold
+            name: MAD threshold
+          - entity: sensor.garden_irrigation_zone_03_min_days_between_watering
+            name: Minimum interval (days)
+          - entity: sensor.garden_irrigation_zone_03_max_runtime
+            name: Maximum watering time
+          - entity: sensor.garden_irrigation_zone_03_area
+            name: Zone area
+          - entity: sensor.garden_irrigation_zone_03_application_rate
+            name: Application rate (effective)
+          - entity: sensor.garden_irrigation_zone_03_water_used_last
+            name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_03_water_used_today
+            name: Water used today
+          - entity: sensor.garden_irrigation_zone_03_water_used_month
+            name: Water used this month
+          - entity: sensor.garden_irrigation_zone_03_water_used_year
+            name: Water used this year
+          - entity: sensor.garden_irrigation_zone_03_projected_soil_water_deficit
+            name: Projected deficit (live)
+          - entity: sensor.garden_irrigation_zone_03_projected_soil_water_level
+            name: Water in soil (live)
+          - entity: sensor.garden_irrigation_zone_03_projected_watering_time
+            name: Projected watering time (live)
+
+      - type: entities
+        title: Zone 4
+        entities:
+          - entity: sensor.garden_irrigation_zone_04_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_04_soil_water_deficit
+            name: Water deficit
+          - entity: sensor.garden_irrigation_zone_04_soil_water_level
+            name: Water in soil
+          - entity: sensor.garden_irrigation_zone_04_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_04_mad_threshold
+            name: MAD threshold
+          - entity: sensor.garden_irrigation_zone_04_min_days_between_watering
+            name: Minimum interval (days)
+          - entity: sensor.garden_irrigation_zone_04_max_runtime
+            name: Maximum watering time
+          - entity: sensor.garden_irrigation_zone_04_area
+            name: Zone area
+          - entity: sensor.garden_irrigation_zone_04_application_rate
+            name: Application rate (effective)
+          - entity: sensor.garden_irrigation_zone_04_water_used_last
+            name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_04_water_used_today
+            name: Water used today
+          - entity: sensor.garden_irrigation_zone_04_water_used_month
+            name: Water used this month
+          - entity: sensor.garden_irrigation_zone_04_water_used_year
+            name: Water used this year
+          - entity: sensor.garden_irrigation_zone_04_projected_soil_water_deficit
+            name: Projected deficit (live)
+          - entity: sensor.garden_irrigation_zone_04_projected_soil_water_level
+            name: Water in soil (live)
+          - entity: sensor.garden_irrigation_zone_04_projected_watering_time
+            name: Projected watering time (live)
+
+      - type: entities
+        title: Zone 5
+        entities:
+          - entity: sensor.garden_irrigation_zone_05_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_05_soil_water_deficit
+            name: Water deficit
+          - entity: sensor.garden_irrigation_zone_05_soil_water_level
+            name: Water in soil
+          - entity: sensor.garden_irrigation_zone_05_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_05_mad_threshold
+            name: MAD threshold
+          - entity: sensor.garden_irrigation_zone_05_min_days_between_watering
+            name: Minimum interval (days)
+          - entity: sensor.garden_irrigation_zone_05_max_runtime
+            name: Maximum watering time
+          - entity: sensor.garden_irrigation_zone_05_area
+            name: Zone area
+          - entity: sensor.garden_irrigation_zone_05_application_rate
+            name: Application rate (effective)
+          - entity: sensor.garden_irrigation_zone_05_water_used_last
+            name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_05_water_used_today
+            name: Water used today
+          - entity: sensor.garden_irrigation_zone_05_water_used_month
+            name: Water used this month
+          - entity: sensor.garden_irrigation_zone_05_water_used_year
+            name: Water used this year
+          - entity: sensor.garden_irrigation_zone_05_projected_soil_water_deficit
+            name: Projected deficit (live)
+          - entity: sensor.garden_irrigation_zone_05_projected_soil_water_level
+            name: Water in soil (live)
+          - entity: sensor.garden_irrigation_zone_05_projected_watering_time
+            name: Projected watering time (live)
+
+      - type: entities
+        title: Zone 6
+        entities:
+          - entity: sensor.garden_irrigation_zone_06_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_06_soil_water_deficit
+            name: Water deficit
+          - entity: sensor.garden_irrigation_zone_06_soil_water_level
+            name: Water in soil
+          - entity: sensor.garden_irrigation_zone_06_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_06_mad_threshold
+            name: MAD threshold
+          - entity: sensor.garden_irrigation_zone_06_min_days_between_watering
+            name: Minimum interval (days)
+          - entity: sensor.garden_irrigation_zone_06_max_runtime
+            name: Maximum watering time
+          - entity: sensor.garden_irrigation_zone_06_area
+            name: Zone area
+          - entity: sensor.garden_irrigation_zone_06_application_rate
+            name: Application rate (effective)
+          - entity: sensor.garden_irrigation_zone_06_water_used_last
+            name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_06_water_used_today
+            name: Water used today
+          - entity: sensor.garden_irrigation_zone_06_water_used_month
+            name: Water used this month
+          - entity: sensor.garden_irrigation_zone_06_water_used_year
+            name: Water used this year
+          - entity: sensor.garden_irrigation_zone_06_projected_soil_water_deficit
+            name: Projected deficit (live)
+          - entity: sensor.garden_irrigation_zone_06_projected_soil_water_level
+            name: Water in soil (live)
+          - entity: sensor.garden_irrigation_zone_06_projected_watering_time
+            name: Projected watering time (live)
+
+  # ============================================================
+  # TAB 3: ZONES (working view - status + actions)
+  # ============================================================
+  - title: Zones
+    path: zones
+    icon: mdi:sprinkler
+    cards:
+      - type: entities
+        title: Zone 1
+        entities:
+          - entity: sensor.garden_irrigation_zone_01_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_01_soil_water_deficit
+            name: Water deficit
+          - entity: binary_sensor.garden_irrigation_zone_01_rain_paused
+            name: Paused (rain)
+          - entity: sensor.garden_irrigation_zone_01_recommended_watering
+            name: Rain during pause (attribute)
+            attribute: rain_during_current_pause_mm
+          - entity: button.garden_irrigation_zone_01_approve_and_run
+            name: Approve and run
+          - entity: button.garden_irrigation_zone_01_skip_today
+            name: Skip today
+
+      - type: entities
+        title: Zone 2
+        entities:
+          - entity: sensor.garden_irrigation_zone_02_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_02_soil_water_deficit
+            name: Water deficit
+          - entity: binary_sensor.garden_irrigation_zone_02_rain_paused
+            name: Paused (rain)
+          - entity: sensor.garden_irrigation_zone_02_recommended_watering
+            name: Rain during pause (attribute)
+            attribute: rain_during_current_pause_mm
+          - entity: button.garden_irrigation_zone_02_approve_and_run
+            name: Approve and run
+          - entity: button.garden_irrigation_zone_02_skip_today
+            name: Skip today
+
+      - type: entities
+        title: Zone 3
+        entities:
+          - entity: sensor.garden_irrigation_zone_03_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_03_soil_water_deficit
+            name: Water deficit
+          - entity: binary_sensor.garden_irrigation_zone_03_rain_paused
+            name: Paused (rain)
+          - entity: sensor.garden_irrigation_zone_03_recommended_watering
+            name: Rain during pause (attribute)
+            attribute: rain_during_current_pause_mm
+          - entity: button.garden_irrigation_zone_03_approve_and_run
+            name: Approve and run
+          - entity: button.garden_irrigation_zone_03_skip_today
+            name: Skip today
+
+      - type: entities
+        title: Zone 4
+        entities:
+          - entity: sensor.garden_irrigation_zone_04_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_04_soil_water_deficit
+            name: Water deficit
+          - entity: binary_sensor.garden_irrigation_zone_04_rain_paused
+            name: Paused (rain)
+          - entity: sensor.garden_irrigation_zone_04_recommended_watering
+            name: Rain during pause (attribute)
+            attribute: rain_during_current_pause_mm
+          - entity: button.garden_irrigation_zone_04_approve_and_run
+            name: Approve and run
+          - entity: button.garden_irrigation_zone_04_skip_today
+            name: Skip today
+
+      - type: entities
+        title: Zone 5
+        entities:
+          - entity: sensor.garden_irrigation_zone_05_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_05_soil_water_deficit
+            name: Water deficit
+          - entity: binary_sensor.garden_irrigation_zone_05_rain_paused
+            name: Paused (rain)
+          - entity: sensor.garden_irrigation_zone_05_recommended_watering
+            name: Rain during pause (attribute)
+            attribute: rain_during_current_pause_mm
+          - entity: button.garden_irrigation_zone_05_approve_and_run
+            name: Approve and run
+          - entity: button.garden_irrigation_zone_05_skip_today
+            name: Skip today
+
+      - type: entities
+        title: Zone 6
+        entities:
+          - entity: sensor.garden_irrigation_zone_06_recommended_watering
+            name: Recommended watering
+          - entity: sensor.garden_irrigation_zone_06_soil_water_deficit
+            name: Water deficit
+          - entity: binary_sensor.garden_irrigation_zone_06_rain_paused
+            name: Paused (rain)
+          - entity: sensor.garden_irrigation_zone_06_recommended_watering
+            name: Rain during pause (attribute)
+            attribute: rain_during_current_pause_mm
+          - entity: button.garden_irrigation_zone_06_approve_and_run
+            name: Approve and run
+          - entity: button.garden_irrigation_zone_06_skip_today
+            name: Skip today
+
+  # ============================================================
+  # TAB 4: INFO (live zone parameters + static reference dictionary)
+  # ============================================================
+  - title: Info
+    path: info
+    icon: mdi:information-outline
+    cards:
+      - type: markdown
+        title: Weather inputs (verification)
+        content: >
+          **ET0 method (yesterday):** {{ states('sensor.garden_irrigation_weather_inputs') }}
+
+          **Now (live sensor readings):**
+          - Temperature: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_temperatura_c') }} °C
+          - Solar radiation: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_naslonecznienie_wm2') }} W/m²
+          - Humidity: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_wilgotnosc_pct') }} %
+          - Wind: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_wiatr_ms') }} m/s
+
+          **Yesterday (ET0 inputs):**
+          {% set w = state_attr('sensor.garden_irrigation_weather_inputs', 'wczoraj') %}
+          {% if w %}
+          - Date: {{ w.data }}
+          - Tmax / Tmin / Tmean: {{ w.tmax_c }} / {{ w.tmin_c }} / {{ w.tmean_c }} °C
+          - Average solar radiation: {{ w.naslonecznienie_srednie_wm2 }} W/m² ({{ w.liczba_probek_naslonecznienia }} samples)
+          - Average wind: {{ w.wiatr_sredni_ms }} m/s ({{ w.liczba_probek_wiatru }} samples)
+          - Average humidity: {{ w.wilgotnosc_srednia_pct }} % ({{ w.liczba_probek_wilgotnosci }} samples)
+          {% else %}
+          - No snapshot saved yet (will appear after the next midnight)
+          {% endif %}
+
+          **Rain:**
+          - Forecast: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_opadu_mm') }} mm (fetched: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_opadu_pobrana_o') }})
+          - Total rain counter: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'opad_licznik_calkowity_mm') }} mm ({{ state_attr('sensor.garden_irrigation_weather_inputs', 'opad_licznik_encja') }})
+          - **Measured today (since midnight):** {{ state_attr('sensor.garden_irrigation_weather_inputs', 'opad_zmierzony_dzisiaj_mm') }} mm - actually subtracted from every zone's deficit
+
+          **Forecast taken into account:**
+          {% set noc = state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_nocna') %}
+          {% if noc %}
+          - Last nightly recalculation ({{ noc.data }}): {{ noc.prognoza_mm }} mm (threshold: {{ noc.prog_mm }} mm) - {{ 'held back' if noc.wstrzymano else 'no hold' }}
+          {% else %}
+          - No nightly snapshot saved yet (will appear after the next midnight)
+          {% endif %}
+          {% set ost = state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_ostatnie_sprawdzenie') %}
+          {% if ost %}
+          - Last check ({{ ost.zrodlo }}, {{ ost.kiedy }}): {{ ost.prognoza_mm }} mm (threshold: {{ ost.prog_mm }} mm) - {{ 'held back' if ost.wstrzymano else 'no hold' }}
+          {% else %}
+          - No check yet
+          {% endif %}
+
+      - type: markdown
+        title: Active parameters in your zones (live)
+        content: |
+          {%- set zones = {
+            'zone_01': 'Zone 1',
+            'zone_02': 'Zone 2',
+            'zone_03': 'Zone 3',
+            'zone_04': 'Zone 4',
+            'zone_05': 'Zone 5',
+            'zone_06': 'Zone 6'
+          } -%}
+          {%- for slug, name in zones.items() %}
+          {%- set param = 'sensor.garden_irrigation_' ~ slug ~ '_soil_plant_parameters' %}
+          {%- set kc = 'sensor.garden_irrigation_' ~ slug ~ '_kc_value' %}
+          {%- set mad = 'sensor.garden_irrigation_' ~ slug ~ '_mad_threshold' %}
+
+          ### {{ name }}
+          - **Soil:** {{ state_attr(param, 'gleba') }}
+          - **Plants:** {{ state_attr(param, 'wybrane_rosliny') | join(', ') if state_attr(param, 'wybrane_rosliny') else 'no data' }}
+          - **Adopted Kc:** {{ states(kc) }} (from: {{ state_attr(kc, 'przyjete_od') }})
+          - **Adopted MAD threshold:** {{ states(mad) }} (from: {{ state_attr(mad, 'przyjete_od') }})
+          - **Available water in soil:** {{ state_attr(param, 'dostepna_woda_gleby_mm_na_m') }} mm/m depth
+          {%- endfor %}
+
+      - type: markdown
+        title: Reference - soil types (water capacity)
+        content: |
+          | Soil | Available water (mm per meter of depth) |
+          |---|---|
+          | Sand | 80 |
+          | Loamy sand | 120 |
+          | Sandy loam (light) | 130 |
+          | Loam (medium, all-purpose) | 155 |
+          | Silt loam (heavy, dense) | 180 |
+          | Clay / heavy clay | 185 |
+          | Potting mix / general-purpose soil | 100 |
+
+      - type: markdown
+        title: Reference - plants (Kc / root depth / MAD)
+        content: |
+          | Plant | Kc | Root depth | MAD |
+          |---|---|---|---|
+          | Ornamental lawn | 0.80 | 150 mm | 0.40 |
+          | Leafy vegetables | 1.00 | 300 mm | 0.50 |
+          | Root vegetables | 0.90 | 350 mm | 0.50 |
+          | Strawberries / wild strawberries | 0.85 | 200 mm | 0.40 |
+          | Roses | 0.60 | 400 mm | 0.50 |
+          | Garden perennials (general) | 0.70 | 300 mm | 0.45 |
+          | Hydrangeas | 0.80 | 300 mm | 0.35 |
+          | Hostas | 0.70 | 250 mm | 0.40 |
+          | Tall ornamental grasses | 0.55 | 400 mm | 0.55 |
+          | Ornamental deciduous shrubs | 0.55 | 400 mm | 0.50 |
+          | Formal deciduous hedge | 0.60 | 400 mm | 0.45 |
+          | Coniferous hedge / shrubs | 0.45 | 450 mm | 0.55 |
+          | Large conifers (fir, pine, spruce) | 0.40 | 600 mm | 0.60 |
+          | Yews | 0.45 | 450 mm | 0.55 |
+          | Creeping conifers | 0.40 | 300 mm | 0.55 |
+          | Mature deciduous trees | 0.50 | 700 mm | 0.60 |
+          | Fruit trees | 0.65 | 600 mm | 0.50 |
+          | Potted plants (general) | 0.90 | 200 mm | 0.30 |
+
+      - type: markdown
+        title: Reference - default application rate by irrigation type
+        content: |
+          | Irrigation type | Default rate | How it's calculated |
+          |---|---|---|
+          | Sprinklers | 12.0 mm/h | Fixed table value |
+          | Micro-sprinklers | 6.0 mm/h | Fixed table value |
+          | Drip line | no fixed value - always calculated | (length / spacing) × emitter flow rate, divided by the effective area (length × 0.4 m wetted strip) |
+          | Individual emitters | no fixed value - always calculated | (number of emitters × emitter flow rate), divided by the zone area |
+
+          This is only a **starting point** in the "Application rate" field when configuring a
+          zone (as long as "Auto-calculate" is enabled) - it can always be overridden manually,
+          and if the zone has a flow meter with "Learn from flow meter" enabled, it will
+          eventually be corrected automatically based on real measurements anyway.
+
+      - type: markdown
+        title: How the water balance is calculated (reminder)
+        content: |
+          - **ETc (daily water use by the plant)** = ET0 × Kc
+          - **Soil water deficit** grows by ETc, shrinks by measured rainfall and delivered water
+          - **Watering threshold** = (soil AWC × root depth / 1000) × MAD
+          - With several plants in one zone: **Kc and root depth** - from the most demanding
+            plant, **MAD** - from the most sensitive one (the lowest threshold)

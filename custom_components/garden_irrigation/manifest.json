@@ -1,0 +1,12 @@
+{
+  "domain": "garden_irrigation",
+  "name": "Ogr\u00f3d - Inteligentne Nawadnianie",
+  "codeowners": ["@TWOJ_LOGIN_GITHUB"],
+  "config_flow": true,
+  "documentation": "https://github.com/TWOJ_LOGIN_GITHUB/garden_irrigation",
+  "issue_tracker": "https://github.com/TWOJ_LOGIN_GITHUB/garden_irrigation/issues",
+  "integration_type": "hub",
+  "iot_class": "calculated",
+  "requirements": [],
+  "version": "1.11.0"
+}

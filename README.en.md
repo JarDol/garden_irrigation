@@ -1,692 +1,755 @@
-{
-  "config": {
-    "step": {
-      "user": {
-        "title": "Stacja pogodowa",
-        "description": "Wskaż encje z danymi pogodowymi używanymi do liczenia ET0 oraz kontroli opadu.",
-        "data": {
-          "temp_sensor": "Temperatura",
-          "solar_sensor": "Nasłonecznienie (W/m²)",
-          "wind_sensor": "Prędkość wiatru (m/s)",
-          "humidity_sensor": "Wilgotność powietrza (%)",
-          "rain_sensor": "Opad - licznik narastający / total rain (mm, NIGDY się nie resetuje)",
-          "rain_forecast_sensor": "Prognoza opadu (mm, kilka najbliższych godzin)",
-          "weather_entity": "Encja usługi pogodowej (weather.*) - integracja sama pobierze prognozę opadu",
-          "weather_forecast_hours": "Ile najbliższych godzin prognozy sumować (mm)",
-          "weather_forecast_interval_min": "Jak rzadko odpytywać usługę pogodową o prognozę (min, niezależnie od reszty czujników)",
-          "rain_detected_sensor": "Szybki detektor opadu (binary_sensor LUB zwykły sensor mm/h, np. sensor.ws_rain_rate) - przyspiesza reakcję w trakcie podlewania",
-          "rain_rate_threshold_mmh": "Próg intensywności opadu (mm/h) dla numerycznego czujnika deszczu",
-          "rain_skip_threshold_mm": "Próg opadu do CAŁKOWITEGO pominięcia podlewania (mm)",
-          "start_mode": "Tryb ustalania startu podlewania względem wschodu słońca",
-          "start_offset_min": "Odstęp w minutach (używany dla trybów 'przed/po wschodzie')",
-          "rain_pause_threshold_mm": "Próg opadu wywołujący pauzę W TRAKCIE podlewania (mm)",
-          "rain_pause_check_interval_min": "Co ile minut sprawdzać opad podczas pracy/pauzy",
-          "rain_pause_max_wait_min": "Po jakim czasie oczekiwania przestać czekać na potwierdzenie ciszy i wznowić MIMO TO, z pomniejszonym celem (min) - integracja NIGDY nie rezygnuje z podlewania tylko z powodu długiego opadu, wyłącznie gdy sam opad już pokryje zapotrzebowanie tej strefy",
-          "auto_mode_enabled": "Włącz w pełni automatyczne podlewanie (bez ręcznego zatwierdzania)",
-          "auto_trigger_buffer_min": "Bufor bezpieczeństwa przy liczeniu wyzwalacza (min)",
-          "update_interval_minutes": "Częstotliwość odczytu danych pogodowych (min)",
-          "pressure_sensor": "Czujnik ciśnienia ABSOLUTNEGO/stacyjnego w hPa (NIE 'relative' ani VPD - liczy się nazwa, nie klasa/jednostka)",
-          "zone_transition_delay_sec": "Przerwa między zamknięciem jednej strefy a otwarciem kolejnej (s)",
-          "valve_verify_timeout_sec": "Ile czekać na potwierdzenie otwarcia/zamknięcia zaworu (s)",
-          "main_flow_sensor": "Główny przepływomierz - suma litrów (domyślny dla stref bez własnego)",
-          "main_flow_rate_sensor": "Główny przepływomierz - przepływ CHWILOWY, np. l/min (domyślny dla stref bez własnego)",
-          "flow_rate_zero_threshold": "Poniżej tej wartości przepływu uznajemy, że wody nie ma",
-          "wind_skip_threshold_ms": "Powyżej tej prędkości wiatru pomijamy strefy wrażliwe (zraszacze)",
-          "frost_threshold_c": "Poniżej tej temperatury pomijamy CAŁE podlewanie (ryzyko przymrozku)",
-          "dynamic_mad_enabled": "Dynamiczna korekta MAD wg FAO-56 (wartość początkowa - dalej sterowana przełącznikiem \"Dynamiczna korekta MAD\" w encjach)",
-          "rain_stop_confirmation_min": "Ile minut NIEPRZERWANEGO braku opadu wymagane, zanim integracja uzna deszcz za zakończony i wznowi podlewanie w trakcie pracy (0 = wznów po pierwszym czystym sprawdzeniu, jak dawniej). Chroni przed częstym otwieraniem/zamykaniem zaworu przy opadzie padającym falami zamiast ciągle. Jeśli opad trwa dłużej niż \"Maks. czas oczekiwania\" (wyżej), integracja i tak wznowi (z pomniejszonym o zmierzony deszcz celem), zamiast czekać w nieskończoność na potwierdzenie ciszy"
-        }
-      },
-      "zone_count": {
-        "title": "Liczba stref",
-        "description": "Ile stref nawadniania chcesz skonfigurować? W kolejnym kroku uzupełnisz tylko te, których faktycznie używasz - resztę zostaw pustą.",
-        "data": {
-          "zone_count": "Liczba stref nawadniania (uzupełnisz w kolejnym kroku tylko te, których używasz)"
-        }
-      },
-      "zones": {
-        "title": "Strefy nawadniania",
-        "description": "Dla każdej strefy wybierz zawór, opcjonalnie przepływomierz, typ gleby oraz jedną lub więcej roślin - system sam policzy zapotrzebowanie na wodę.",
-        "data": {
-          "zone1_name": "Strefa 1: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone1_switch_entity": "Strefa 1: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone1_flow_sensor": "Strefa 1: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone1_soil_type": "Strefa 1: Typ gleby w tej strefie",
-          "zone1_plants": "Strefa 1: Rośliny w tej strefie (można wybrać kilka)",
-          "zone1_area_m2": "Strefa 1: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone1_application_rate_mmh": "Strefa 1: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone1_max_runtime_min": "Strefa 1: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone1_timer_entity": "Strefa 1: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone2_name": "Strefa 2: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone2_switch_entity": "Strefa 2: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone2_flow_sensor": "Strefa 2: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone2_soil_type": "Strefa 2: Typ gleby w tej strefie",
-          "zone2_plants": "Strefa 2: Rośliny w tej strefie (można wybrać kilka)",
-          "zone2_area_m2": "Strefa 2: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone2_application_rate_mmh": "Strefa 2: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone2_max_runtime_min": "Strefa 2: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone2_timer_entity": "Strefa 2: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone3_name": "Strefa 3: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone3_switch_entity": "Strefa 3: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone3_flow_sensor": "Strefa 3: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone3_soil_type": "Strefa 3: Typ gleby w tej strefie",
-          "zone3_plants": "Strefa 3: Rośliny w tej strefie (można wybrać kilka)",
-          "zone3_area_m2": "Strefa 3: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone3_application_rate_mmh": "Strefa 3: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone3_max_runtime_min": "Strefa 3: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone3_timer_entity": "Strefa 3: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone4_name": "Strefa 4: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone4_switch_entity": "Strefa 4: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone4_flow_sensor": "Strefa 4: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone4_soil_type": "Strefa 4: Typ gleby w tej strefie",
-          "zone4_plants": "Strefa 4: Rośliny w tej strefie (można wybrać kilka)",
-          "zone4_area_m2": "Strefa 4: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone4_application_rate_mmh": "Strefa 4: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone4_max_runtime_min": "Strefa 4: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone4_timer_entity": "Strefa 4: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone5_name": "Strefa 5: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone5_switch_entity": "Strefa 5: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone5_flow_sensor": "Strefa 5: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone5_soil_type": "Strefa 5: Typ gleby w tej strefie",
-          "zone5_plants": "Strefa 5: Rośliny w tej strefie (można wybrać kilka)",
-          "zone5_area_m2": "Strefa 5: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone5_application_rate_mmh": "Strefa 5: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone5_max_runtime_min": "Strefa 5: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone5_timer_entity": "Strefa 5: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone6_name": "Strefa 6: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone6_switch_entity": "Strefa 6: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone6_flow_sensor": "Strefa 6: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone6_soil_type": "Strefa 6: Typ gleby w tej strefie",
-          "zone6_plants": "Strefa 6: Rośliny w tej strefie (można wybrać kilka)",
-          "zone6_area_m2": "Strefa 6: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone6_application_rate_mmh": "Strefa 6: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone6_max_runtime_min": "Strefa 6: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone6_timer_entity": "Strefa 6: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone7_name": "Strefa 7: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone7_switch_entity": "Strefa 7: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone7_flow_sensor": "Strefa 7: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone7_soil_type": "Strefa 7: Typ gleby w tej strefie",
-          "zone7_plants": "Strefa 7: Rośliny w tej strefie (można wybrać kilka)",
-          "zone7_area_m2": "Strefa 7: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone7_application_rate_mmh": "Strefa 7: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone7_max_runtime_min": "Strefa 7: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone7_timer_entity": "Strefa 7: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone8_name": "Strefa 8: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone8_switch_entity": "Strefa 8: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone8_flow_sensor": "Strefa 8: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone8_soil_type": "Strefa 8: Typ gleby w tej strefie",
-          "zone8_plants": "Strefa 8: Rośliny w tej strefie (można wybrać kilka)",
-          "zone8_area_m2": "Strefa 8: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone8_application_rate_mmh": "Strefa 8: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone8_max_runtime_min": "Strefa 8: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone8_timer_entity": "Strefa 8: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone9_name": "Strefa 9: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone9_switch_entity": "Strefa 9: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone9_flow_sensor": "Strefa 9: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone9_soil_type": "Strefa 9: Typ gleby w tej strefie",
-          "zone9_plants": "Strefa 9: Rośliny w tej strefie (można wybrać kilka)",
-          "zone9_area_m2": "Strefa 9: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone9_application_rate_mmh": "Strefa 9: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone9_max_runtime_min": "Strefa 9: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone9_timer_entity": "Strefa 9: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone10_name": "Strefa 10: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone10_switch_entity": "Strefa 10: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone10_flow_sensor": "Strefa 10: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone10_soil_type": "Strefa 10: Typ gleby w tej strefie",
-          "zone10_plants": "Strefa 10: Rośliny w tej strefie (można wybrać kilka)",
-          "zone10_area_m2": "Strefa 10: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone10_application_rate_mmh": "Strefa 10: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone10_max_runtime_min": "Strefa 10: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone10_timer_entity": "Strefa 10: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone11_name": "Strefa 11: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone11_switch_entity": "Strefa 11: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone11_flow_sensor": "Strefa 11: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone11_soil_type": "Strefa 11: Typ gleby w tej strefie",
-          "zone11_plants": "Strefa 11: Rośliny w tej strefie (można wybrać kilka)",
-          "zone11_area_m2": "Strefa 11: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone11_application_rate_mmh": "Strefa 11: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone11_max_runtime_min": "Strefa 11: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone11_timer_entity": "Strefa 11: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone12_name": "Strefa 12: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone12_switch_entity": "Strefa 12: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone12_flow_sensor": "Strefa 12: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone12_soil_type": "Strefa 12: Typ gleby w tej strefie",
-          "zone12_plants": "Strefa 12: Rośliny w tej strefie (można wybrać kilka)",
-          "zone12_area_m2": "Strefa 12: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone12_application_rate_mmh": "Strefa 12: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone12_max_runtime_min": "Strefa 12: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone12_timer_entity": "Strefa 12: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone1_kc_override": "Strefa 1: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone1_mad_override": "Strefa 1: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone2_kc_override": "Strefa 2: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone2_mad_override": "Strefa 2: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone3_kc_override": "Strefa 3: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone3_mad_override": "Strefa 3: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone4_kc_override": "Strefa 4: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone4_mad_override": "Strefa 4: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone5_kc_override": "Strefa 5: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone5_mad_override": "Strefa 5: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone6_kc_override": "Strefa 6: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone6_mad_override": "Strefa 6: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone7_kc_override": "Strefa 7: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone7_mad_override": "Strefa 7: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone8_kc_override": "Strefa 8: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone8_mad_override": "Strefa 8: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone9_kc_override": "Strefa 9: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone9_mad_override": "Strefa 9: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone10_kc_override": "Strefa 10: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone10_mad_override": "Strefa 10: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone11_kc_override": "Strefa 11: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone11_mad_override": "Strefa 11: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone12_kc_override": "Strefa 12: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone12_mad_override": "Strefa 12: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone1_flow_rate_sensor": "Strefa 1: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone2_flow_rate_sensor": "Strefa 2: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone3_flow_rate_sensor": "Strefa 3: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone4_flow_rate_sensor": "Strefa 4: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone5_flow_rate_sensor": "Strefa 5: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone6_flow_rate_sensor": "Strefa 6: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone7_flow_rate_sensor": "Strefa 7: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone8_flow_rate_sensor": "Strefa 8: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone9_flow_rate_sensor": "Strefa 9: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone10_flow_rate_sensor": "Strefa 10: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone11_flow_rate_sensor": "Strefa 11: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone12_flow_rate_sensor": "Strefa 12: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone1_min_days_between_watering": "Strefa 1: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone1_wind_sensitive": "Strefa 1: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone2_min_days_between_watering": "Strefa 2: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone2_wind_sensitive": "Strefa 2: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone3_min_days_between_watering": "Strefa 3: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone3_wind_sensitive": "Strefa 3: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone4_min_days_between_watering": "Strefa 4: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone4_wind_sensitive": "Strefa 4: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone5_min_days_between_watering": "Strefa 5: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone5_wind_sensitive": "Strefa 5: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone6_min_days_between_watering": "Strefa 6: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone6_wind_sensitive": "Strefa 6: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone7_min_days_between_watering": "Strefa 7: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone7_wind_sensitive": "Strefa 7: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone8_min_days_between_watering": "Strefa 8: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone8_wind_sensitive": "Strefa 8: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone9_min_days_between_watering": "Strefa 9: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone9_wind_sensitive": "Strefa 9: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone10_min_days_between_watering": "Strefa 10: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone10_wind_sensitive": "Strefa 10: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone11_min_days_between_watering": "Strefa 11: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone11_wind_sensitive": "Strefa 11: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone12_min_days_between_watering": "Strefa 12: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone12_wind_sensitive": "Strefa 12: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone1_root_depth_override_plant": "Strefa 1: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone2_root_depth_override_plant": "Strefa 2: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone3_root_depth_override_plant": "Strefa 3: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone4_root_depth_override_plant": "Strefa 4: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone5_root_depth_override_plant": "Strefa 5: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone6_root_depth_override_plant": "Strefa 6: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone7_root_depth_override_plant": "Strefa 7: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone8_root_depth_override_plant": "Strefa 8: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone9_root_depth_override_plant": "Strefa 9: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone10_root_depth_override_plant": "Strefa 10: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone11_root_depth_override_plant": "Strefa 11: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone12_root_depth_override_plant": "Strefa 12: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone1_irrigation_type": "Strefa 1: Typ nawadniania",
-          "zone1_drip_line_length_m": "Strefa 1: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone1_drip_spacing_cm": "Strefa 1: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone1_drip_emitter_lph": "Strefa 1: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone1_drip_count": "Strefa 1: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone1_learn_rate_from_flow": "Strefa 1: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone2_irrigation_type": "Strefa 2: Typ nawadniania",
-          "zone2_drip_line_length_m": "Strefa 2: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone2_drip_spacing_cm": "Strefa 2: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone2_drip_emitter_lph": "Strefa 2: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone2_drip_count": "Strefa 2: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone2_learn_rate_from_flow": "Strefa 2: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone3_irrigation_type": "Strefa 3: Typ nawadniania",
-          "zone3_drip_line_length_m": "Strefa 3: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone3_drip_spacing_cm": "Strefa 3: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone3_drip_emitter_lph": "Strefa 3: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone3_drip_count": "Strefa 3: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone3_learn_rate_from_flow": "Strefa 3: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone4_irrigation_type": "Strefa 4: Typ nawadniania",
-          "zone4_drip_line_length_m": "Strefa 4: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone4_drip_spacing_cm": "Strefa 4: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone4_drip_emitter_lph": "Strefa 4: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone4_drip_count": "Strefa 4: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone4_learn_rate_from_flow": "Strefa 4: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone5_irrigation_type": "Strefa 5: Typ nawadniania",
-          "zone5_drip_line_length_m": "Strefa 5: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone5_drip_spacing_cm": "Strefa 5: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone5_drip_emitter_lph": "Strefa 5: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone5_drip_count": "Strefa 5: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone5_learn_rate_from_flow": "Strefa 5: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone6_irrigation_type": "Strefa 6: Typ nawadniania",
-          "zone6_drip_line_length_m": "Strefa 6: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone6_drip_spacing_cm": "Strefa 6: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone6_drip_emitter_lph": "Strefa 6: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone6_drip_count": "Strefa 6: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone6_learn_rate_from_flow": "Strefa 6: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone7_irrigation_type": "Strefa 7: Typ nawadniania",
-          "zone7_drip_line_length_m": "Strefa 7: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone7_drip_spacing_cm": "Strefa 7: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone7_drip_emitter_lph": "Strefa 7: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone7_drip_count": "Strefa 7: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone7_learn_rate_from_flow": "Strefa 7: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone8_irrigation_type": "Strefa 8: Typ nawadniania",
-          "zone8_drip_line_length_m": "Strefa 8: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone8_drip_spacing_cm": "Strefa 8: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone8_drip_emitter_lph": "Strefa 8: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone8_drip_count": "Strefa 8: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone8_learn_rate_from_flow": "Strefa 8: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone9_irrigation_type": "Strefa 9: Typ nawadniania",
-          "zone9_drip_line_length_m": "Strefa 9: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone9_drip_spacing_cm": "Strefa 9: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone9_drip_emitter_lph": "Strefa 9: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone9_drip_count": "Strefa 9: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone9_learn_rate_from_flow": "Strefa 9: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone10_irrigation_type": "Strefa 10: Typ nawadniania",
-          "zone10_drip_line_length_m": "Strefa 10: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone10_drip_spacing_cm": "Strefa 10: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone10_drip_emitter_lph": "Strefa 10: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone10_drip_count": "Strefa 10: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone10_learn_rate_from_flow": "Strefa 10: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone11_irrigation_type": "Strefa 11: Typ nawadniania",
-          "zone11_drip_line_length_m": "Strefa 11: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone11_drip_spacing_cm": "Strefa 11: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone11_drip_emitter_lph": "Strefa 11: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone11_drip_count": "Strefa 11: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone11_learn_rate_from_flow": "Strefa 11: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone12_irrigation_type": "Strefa 12: Typ nawadniania",
-          "zone12_drip_line_length_m": "Strefa 12: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone12_drip_spacing_cm": "Strefa 12: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone12_drip_emitter_lph": "Strefa 12: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone12_drip_count": "Strefa 12: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone12_learn_rate_from_flow": "Strefa 12: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone1_auto_calc_rate": "Strefa 1: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone2_auto_calc_rate": "Strefa 2: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone3_auto_calc_rate": "Strefa 3: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone4_auto_calc_rate": "Strefa 4: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone5_auto_calc_rate": "Strefa 5: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone6_auto_calc_rate": "Strefa 6: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone7_auto_calc_rate": "Strefa 7: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone8_auto_calc_rate": "Strefa 8: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone9_auto_calc_rate": "Strefa 9: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone10_auto_calc_rate": "Strefa 10: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone11_auto_calc_rate": "Strefa 11: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone12_auto_calc_rate": "Strefa 12: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone1_adjust_runtime_from_flow": "Strefa 1: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone2_adjust_runtime_from_flow": "Strefa 2: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone3_adjust_runtime_from_flow": "Strefa 3: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone4_adjust_runtime_from_flow": "Strefa 4: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone5_adjust_runtime_from_flow": "Strefa 5: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone6_adjust_runtime_from_flow": "Strefa 6: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone7_adjust_runtime_from_flow": "Strefa 7: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone8_adjust_runtime_from_flow": "Strefa 8: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone9_adjust_runtime_from_flow": "Strefa 9: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone10_adjust_runtime_from_flow": "Strefa 10: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone11_adjust_runtime_from_flow": "Strefa 11: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone12_adjust_runtime_from_flow": "Strefa 12: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo."
-        }
-      },
-      "location": {
-        "title": "Lokalizacja ogrodu",
-        "description": "Domyślnie pokazuje Twój dom (z ogólnej konfiguracji HA) - przeciągnij pinezkę, jeśli ogród jest w innym miejscu. Używana do liczenia ET0 i wschodu słońca.",
-        "data": {
-          "garden_location": "Lokalizacja ogrodu"
-        }
-      }
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Stacja pogodowa",
-        "data": {
-          "temp_sensor": "Temperatura",
-          "solar_sensor": "Nasłonecznienie (W/m²)",
-          "wind_sensor": "Prędkość wiatru (m/s)",
-          "humidity_sensor": "Wilgotność powietrza (%)",
-          "rain_sensor": "Opad - licznik narastający / total rain (mm, NIGDY się nie resetuje)",
-          "rain_forecast_sensor": "Prognoza opadu (mm, kilka najbliższych godzin)",
-          "weather_entity": "Encja usługi pogodowej (weather.*) - integracja sama pobierze prognozę opadu",
-          "weather_forecast_hours": "Ile najbliższych godzin prognozy sumować (mm)",
-          "weather_forecast_interval_min": "Jak rzadko odpytywać usługę pogodową o prognozę (min, niezależnie od reszty czujników)",
-          "rain_detected_sensor": "Szybki detektor opadu (binary_sensor LUB zwykły sensor mm/h, np. sensor.ws_rain_rate) - przyspiesza reakcję w trakcie podlewania",
-          "rain_rate_threshold_mmh": "Próg intensywności opadu (mm/h) dla numerycznego czujnika deszczu",
-          "rain_skip_threshold_mm": "Próg opadu do CAŁKOWITEGO pominięcia podlewania (mm)",
-          "start_mode": "Tryb ustalania startu podlewania względem wschodu słońca",
-          "start_offset_min": "Odstęp w minutach (używany dla trybów 'przed/po wschodzie')",
-          "rain_pause_threshold_mm": "Próg opadu wywołujący pauzę W TRAKCIE podlewania (mm)",
-          "rain_pause_check_interval_min": "Co ile minut sprawdzać opad podczas pracy/pauzy",
-          "rain_pause_max_wait_min": "Po jakim czasie oczekiwania przestać czekać na potwierdzenie ciszy i wznowić MIMO TO, z pomniejszonym celem (min) - integracja NIGDY nie rezygnuje z podlewania tylko z powodu długiego opadu, wyłącznie gdy sam opad już pokryje zapotrzebowanie tej strefy",
-          "auto_mode_enabled": "Włącz w pełni automatyczne podlewanie (bez ręcznego zatwierdzania)",
-          "auto_trigger_buffer_min": "Bufor bezpieczeństwa przy liczeniu wyzwalacza (min)",
-          "update_interval_minutes": "Częstotliwość odczytu danych pogodowych (min)",
-          "pressure_sensor": "Czujnik ciśnienia ABSOLUTNEGO/stacyjnego w hPa (NIE 'relative' ani VPD - liczy się nazwa, nie klasa/jednostka)",
-          "zone_transition_delay_sec": "Przerwa między zamknięciem jednej strefy a otwarciem kolejnej (s)",
-          "valve_verify_timeout_sec": "Ile czekać na potwierdzenie otwarcia/zamknięcia zaworu (s)",
-          "main_flow_sensor": "Główny przepływomierz - suma litrów (domyślny dla stref bez własnego)",
-          "main_flow_rate_sensor": "Główny przepływomierz - przepływ CHWILOWY, np. l/min (domyślny dla stref bez własnego)",
-          "flow_rate_zero_threshold": "Poniżej tej wartości przepływu uznajemy, że wody nie ma",
-          "wind_skip_threshold_ms": "Powyżej tej prędkości wiatru pomijamy strefy wrażliwe (zraszacze)",
-          "frost_threshold_c": "Poniżej tej temperatury pomijamy CAŁE podlewanie (ryzyko przymrozku)",
-          "dynamic_mad_enabled": "Dynamiczna korekta MAD wg FAO-56 (wartość początkowa - dalej sterowana przełącznikiem \"Dynamiczna korekta MAD\" w encjach)",
-          "rain_stop_confirmation_min": "Ile minut NIEPRZERWANEGO braku opadu wymagane, zanim integracja uzna deszcz za zakończony i wznowi podlewanie w trakcie pracy (0 = wznów po pierwszym czystym sprawdzeniu, jak dawniej). Chroni przed częstym otwieraniem/zamykaniem zaworu przy opadzie padającym falami zamiast ciągle. Jeśli opad trwa dłużej niż \"Maks. czas oczekiwania\" (wyżej), integracja i tak wznowi (z pomniejszonym o zmierzony deszcz celem), zamiast czekać w nieskończoność na potwierdzenie ciszy"
-        }
-      },
-      "zone_count": {
-        "title": "Liczba stref",
-        "data": {
-          "zone_count": "Liczba stref nawadniania (uzupełnisz w kolejnym kroku tylko te, których używasz)"
-        }
-      },
-      "zones": {
-        "title": "Strefy nawadniania",
-        "data": {
-          "zone1_name": "Strefa 1: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone1_switch_entity": "Strefa 1: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone1_flow_sensor": "Strefa 1: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone1_soil_type": "Strefa 1: Typ gleby w tej strefie",
-          "zone1_plants": "Strefa 1: Rośliny w tej strefie (można wybrać kilka)",
-          "zone1_area_m2": "Strefa 1: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone1_application_rate_mmh": "Strefa 1: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone1_max_runtime_min": "Strefa 1: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone1_timer_entity": "Strefa 1: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone2_name": "Strefa 2: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone2_switch_entity": "Strefa 2: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone2_flow_sensor": "Strefa 2: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone2_soil_type": "Strefa 2: Typ gleby w tej strefie",
-          "zone2_plants": "Strefa 2: Rośliny w tej strefie (można wybrać kilka)",
-          "zone2_area_m2": "Strefa 2: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone2_application_rate_mmh": "Strefa 2: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone2_max_runtime_min": "Strefa 2: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone2_timer_entity": "Strefa 2: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone3_name": "Strefa 3: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone3_switch_entity": "Strefa 3: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone3_flow_sensor": "Strefa 3: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone3_soil_type": "Strefa 3: Typ gleby w tej strefie",
-          "zone3_plants": "Strefa 3: Rośliny w tej strefie (można wybrać kilka)",
-          "zone3_area_m2": "Strefa 3: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone3_application_rate_mmh": "Strefa 3: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone3_max_runtime_min": "Strefa 3: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone3_timer_entity": "Strefa 3: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone4_name": "Strefa 4: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone4_switch_entity": "Strefa 4: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone4_flow_sensor": "Strefa 4: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone4_soil_type": "Strefa 4: Typ gleby w tej strefie",
-          "zone4_plants": "Strefa 4: Rośliny w tej strefie (można wybrać kilka)",
-          "zone4_area_m2": "Strefa 4: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone4_application_rate_mmh": "Strefa 4: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone4_max_runtime_min": "Strefa 4: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone4_timer_entity": "Strefa 4: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone5_name": "Strefa 5: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone5_switch_entity": "Strefa 5: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone5_flow_sensor": "Strefa 5: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone5_soil_type": "Strefa 5: Typ gleby w tej strefie",
-          "zone5_plants": "Strefa 5: Rośliny w tej strefie (można wybrać kilka)",
-          "zone5_area_m2": "Strefa 5: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone5_application_rate_mmh": "Strefa 5: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone5_max_runtime_min": "Strefa 5: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone5_timer_entity": "Strefa 5: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone6_name": "Strefa 6: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone6_switch_entity": "Strefa 6: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone6_flow_sensor": "Strefa 6: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone6_soil_type": "Strefa 6: Typ gleby w tej strefie",
-          "zone6_plants": "Strefa 6: Rośliny w tej strefie (można wybrać kilka)",
-          "zone6_area_m2": "Strefa 6: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone6_application_rate_mmh": "Strefa 6: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone6_max_runtime_min": "Strefa 6: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone6_timer_entity": "Strefa 6: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone7_name": "Strefa 7: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone7_switch_entity": "Strefa 7: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone7_flow_sensor": "Strefa 7: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone7_soil_type": "Strefa 7: Typ gleby w tej strefie",
-          "zone7_plants": "Strefa 7: Rośliny w tej strefie (można wybrać kilka)",
-          "zone7_area_m2": "Strefa 7: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone7_application_rate_mmh": "Strefa 7: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone7_max_runtime_min": "Strefa 7: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone7_timer_entity": "Strefa 7: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone8_name": "Strefa 8: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone8_switch_entity": "Strefa 8: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone8_flow_sensor": "Strefa 8: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone8_soil_type": "Strefa 8: Typ gleby w tej strefie",
-          "zone8_plants": "Strefa 8: Rośliny w tej strefie (można wybrać kilka)",
-          "zone8_area_m2": "Strefa 8: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone8_application_rate_mmh": "Strefa 8: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone8_max_runtime_min": "Strefa 8: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone8_timer_entity": "Strefa 8: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone9_name": "Strefa 9: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone9_switch_entity": "Strefa 9: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone9_flow_sensor": "Strefa 9: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone9_soil_type": "Strefa 9: Typ gleby w tej strefie",
-          "zone9_plants": "Strefa 9: Rośliny w tej strefie (można wybrać kilka)",
-          "zone9_area_m2": "Strefa 9: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone9_application_rate_mmh": "Strefa 9: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone9_max_runtime_min": "Strefa 9: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone9_timer_entity": "Strefa 9: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone10_name": "Strefa 10: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone10_switch_entity": "Strefa 10: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone10_flow_sensor": "Strefa 10: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone10_soil_type": "Strefa 10: Typ gleby w tej strefie",
-          "zone10_plants": "Strefa 10: Rośliny w tej strefie (można wybrać kilka)",
-          "zone10_area_m2": "Strefa 10: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone10_application_rate_mmh": "Strefa 10: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone10_max_runtime_min": "Strefa 10: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone10_timer_entity": "Strefa 10: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone11_name": "Strefa 11: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone11_switch_entity": "Strefa 11: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone11_flow_sensor": "Strefa 11: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone11_soil_type": "Strefa 11: Typ gleby w tej strefie",
-          "zone11_plants": "Strefa 11: Rośliny w tej strefie (można wybrać kilka)",
-          "zone11_area_m2": "Strefa 11: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone11_application_rate_mmh": "Strefa 11: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone11_max_runtime_min": "Strefa 11: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone11_timer_entity": "Strefa 11: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone12_name": "Strefa 12: Nazwa strefy (np. Trawnik, Donice) - zostaw puste dla domyślnej",
-          "zone12_switch_entity": "Strefa 12: Zawór / przełącznik strefy (switch lub valve) - puste = strefa nieaktywna",
-          "zone12_flow_sensor": "Strefa 12: Przepływomierz strefy (opcjonalnie, dokładniejszy pomiar zużytej wody)",
-          "zone12_soil_type": "Strefa 12: Typ gleby w tej strefie",
-          "zone12_plants": "Strefa 12: Rośliny w tej strefie (można wybrać kilka)",
-          "zone12_area_m2": "Strefa 12: Powierzchnia / zwilżana strefa korzeniowa (m²)",
-          "zone12_application_rate_mmh": "Strefa 12: Wydajność zraszaczy/kroplówki (mm/h)",
-          "zone12_max_runtime_min": "Strefa 12: Maksymalny czas podlewania tej strefy (min) - limit bezpieczeństwa",
-          "zone12_timer_entity": "Strefa 12: Watchdog: licznik czasowy strefy na sterowniku (number.*, opcjonalnie)",
-          "zone1_kc_override": "Strefa 1: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone1_mad_override": "Strefa 1: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone2_kc_override": "Strefa 2: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone2_mad_override": "Strefa 2: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone3_kc_override": "Strefa 3: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone3_mad_override": "Strefa 3: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone4_kc_override": "Strefa 4: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone4_mad_override": "Strefa 4: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone5_kc_override": "Strefa 5: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone5_mad_override": "Strefa 5: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone6_kc_override": "Strefa 6: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone6_mad_override": "Strefa 6: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone7_kc_override": "Strefa 7: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone7_mad_override": "Strefa 7: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone8_kc_override": "Strefa 8: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone8_mad_override": "Strefa 8: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone9_kc_override": "Strefa 9: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone9_mad_override": "Strefa 9: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone10_kc_override": "Strefa 10: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone10_mad_override": "Strefa 10: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone11_kc_override": "Strefa 11: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone11_mad_override": "Strefa 11: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone12_kc_override": "Strefa 12: Ręczna kalibracja Kc (puste = wylicz z wybranych roślin, np. 0.65)",
-          "zone12_mad_override": "Strefa 12: Ręczna kalibracja progu MAD (puste = wylicz z wybranych roślin, np. 0.45)",
-          "zone1_flow_rate_sensor": "Strefa 1: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone2_flow_rate_sensor": "Strefa 2: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone3_flow_rate_sensor": "Strefa 3: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone4_flow_rate_sensor": "Strefa 4: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone5_flow_rate_sensor": "Strefa 5: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone6_flow_rate_sensor": "Strefa 6: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone7_flow_rate_sensor": "Strefa 7: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone8_flow_rate_sensor": "Strefa 8: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone9_flow_rate_sensor": "Strefa 9: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone10_flow_rate_sensor": "Strefa 10: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone11_flow_rate_sensor": "Strefa 11: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone12_flow_rate_sensor": "Strefa 12: Przepływomierz chwilowy tej strefy (opcjonalnie, puste = użyj głównego)",
-          "zone1_min_days_between_watering": "Strefa 1: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone1_wind_sensitive": "Strefa 1: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone2_min_days_between_watering": "Strefa 2: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone2_wind_sensitive": "Strefa 2: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone3_min_days_between_watering": "Strefa 3: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone3_wind_sensitive": "Strefa 3: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone4_min_days_between_watering": "Strefa 4: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone4_wind_sensitive": "Strefa 4: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone5_min_days_between_watering": "Strefa 5: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone5_wind_sensitive": "Strefa 5: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone6_min_days_between_watering": "Strefa 6: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone6_wind_sensitive": "Strefa 6: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone7_min_days_between_watering": "Strefa 7: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone7_wind_sensitive": "Strefa 7: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone8_min_days_between_watering": "Strefa 8: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone8_wind_sensitive": "Strefa 8: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone9_min_days_between_watering": "Strefa 9: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone9_wind_sensitive": "Strefa 9: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone10_min_days_between_watering": "Strefa 10: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone10_wind_sensitive": "Strefa 10: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone11_min_days_between_watering": "Strefa 11: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone11_wind_sensitive": "Strefa 11: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone12_min_days_between_watering": "Strefa 12: Minimalny odstęp między podlewaniami tej strefy (dni, 0 = brak limitu) - zachęca korzenie do sięgania głębiej",
-          "zone12_wind_sensitive": "Strefa 12: Strefa wrażliwa na wiatr (zraszacze) - pomijana przy silnym wietrze",
-          "zone1_root_depth_override_plant": "Strefa 1: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone2_root_depth_override_plant": "Strefa 2: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone3_root_depth_override_plant": "Strefa 3: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone4_root_depth_override_plant": "Strefa 4: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone5_root_depth_override_plant": "Strefa 5: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone6_root_depth_override_plant": "Strefa 6: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone7_root_depth_override_plant": "Strefa 7: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone8_root_depth_override_plant": "Strefa 8: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone9_root_depth_override_plant": "Strefa 9: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone10_root_depth_override_plant": "Strefa 10: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone11_root_depth_override_plant": "Strefa 11: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone12_root_depth_override_plant": "Strefa 12: Głębokość korzeni z wybranej rośliny (opcjonalnie - lista pokazuje tylko rośliny już zapisane w tej strefie, posortowane wg Kc; puste = automatyczne maksimum ze wszystkich wybranych roślin)",
-          "zone1_irrigation_type": "Strefa 1: Typ nawadniania",
-          "zone1_drip_line_length_m": "Strefa 1: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone1_drip_spacing_cm": "Strefa 1: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone1_drip_emitter_lph": "Strefa 1: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone1_drip_count": "Strefa 1: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone1_learn_rate_from_flow": "Strefa 1: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone2_irrigation_type": "Strefa 2: Typ nawadniania",
-          "zone2_drip_line_length_m": "Strefa 2: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone2_drip_spacing_cm": "Strefa 2: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone2_drip_emitter_lph": "Strefa 2: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone2_drip_count": "Strefa 2: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone2_learn_rate_from_flow": "Strefa 2: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone3_irrigation_type": "Strefa 3: Typ nawadniania",
-          "zone3_drip_line_length_m": "Strefa 3: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone3_drip_spacing_cm": "Strefa 3: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone3_drip_emitter_lph": "Strefa 3: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone3_drip_count": "Strefa 3: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone3_learn_rate_from_flow": "Strefa 3: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone4_irrigation_type": "Strefa 4: Typ nawadniania",
-          "zone4_drip_line_length_m": "Strefa 4: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone4_drip_spacing_cm": "Strefa 4: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone4_drip_emitter_lph": "Strefa 4: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone4_drip_count": "Strefa 4: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone4_learn_rate_from_flow": "Strefa 4: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone5_irrigation_type": "Strefa 5: Typ nawadniania",
-          "zone5_drip_line_length_m": "Strefa 5: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone5_drip_spacing_cm": "Strefa 5: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone5_drip_emitter_lph": "Strefa 5: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone5_drip_count": "Strefa 5: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone5_learn_rate_from_flow": "Strefa 5: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone6_irrigation_type": "Strefa 6: Typ nawadniania",
-          "zone6_drip_line_length_m": "Strefa 6: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone6_drip_spacing_cm": "Strefa 6: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone6_drip_emitter_lph": "Strefa 6: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone6_drip_count": "Strefa 6: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone6_learn_rate_from_flow": "Strefa 6: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone7_irrigation_type": "Strefa 7: Typ nawadniania",
-          "zone7_drip_line_length_m": "Strefa 7: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone7_drip_spacing_cm": "Strefa 7: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone7_drip_emitter_lph": "Strefa 7: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone7_drip_count": "Strefa 7: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone7_learn_rate_from_flow": "Strefa 7: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone8_irrigation_type": "Strefa 8: Typ nawadniania",
-          "zone8_drip_line_length_m": "Strefa 8: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone8_drip_spacing_cm": "Strefa 8: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone8_drip_emitter_lph": "Strefa 8: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone8_drip_count": "Strefa 8: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone8_learn_rate_from_flow": "Strefa 8: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone9_irrigation_type": "Strefa 9: Typ nawadniania",
-          "zone9_drip_line_length_m": "Strefa 9: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone9_drip_spacing_cm": "Strefa 9: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone9_drip_emitter_lph": "Strefa 9: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone9_drip_count": "Strefa 9: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone9_learn_rate_from_flow": "Strefa 9: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone10_irrigation_type": "Strefa 10: Typ nawadniania",
-          "zone10_drip_line_length_m": "Strefa 10: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone10_drip_spacing_cm": "Strefa 10: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone10_drip_emitter_lph": "Strefa 10: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone10_drip_count": "Strefa 10: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone10_learn_rate_from_flow": "Strefa 10: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone11_irrigation_type": "Strefa 11: Typ nawadniania",
-          "zone11_drip_line_length_m": "Strefa 11: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone11_drip_spacing_cm": "Strefa 11: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone11_drip_emitter_lph": "Strefa 11: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone11_drip_count": "Strefa 11: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone11_learn_rate_from_flow": "Strefa 11: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone12_irrigation_type": "Strefa 12: Typ nawadniania",
-          "zone12_drip_line_length_m": "Strefa 12: Długość linii kroplującej (m) - tylko dla typu \"Linia kroplująca\", ignorowane dla innych",
-          "zone12_drip_spacing_cm": "Strefa 12: Rozstaw kroplowników w linii (cm) - tylko dla typu \"Linia kroplująca\"",
-          "zone12_drip_emitter_lph": "Strefa 12: Wydajność pojedynczego kroplownika (L/h) - dla \"Linia kroplująca\" lub \"Pojedyncze kroplowniki\"",
-          "zone12_drip_count": "Strefa 12: Liczba kroplowników (szt.) - tylko dla typu \"Pojedyncze kroplowniki\"",
-          "zone12_learn_rate_from_flow": "Strefa 12: Ucz się wydajności z pomiaru wodomierza (wymaga podłączonego przepływomierza)",
-          "zone1_auto_calc_rate": "Strefa 1: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone2_auto_calc_rate": "Strefa 2: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone3_auto_calc_rate": "Strefa 3: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone4_auto_calc_rate": "Strefa 4: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone5_auto_calc_rate": "Strefa 5: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone6_auto_calc_rate": "Strefa 6: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone7_auto_calc_rate": "Strefa 7: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone8_auto_calc_rate": "Strefa 8: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone9_auto_calc_rate": "Strefa 9: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone10_auto_calc_rate": "Strefa 10: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone11_auto_calc_rate": "Strefa 11: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone12_auto_calc_rate": "Strefa 12: Wyliczaj wydajność automatycznie z typu nawadniania - dotyczy WYŁĄCZNIE PODPOWIEDZI W TYM FORMULARZU (co się pokazuje w polu \"Wydajność\" poniżej, gdy wchodzisz w konfigurację), NIE steruje rzeczywistą wydajnością używaną do podlewania ani wartością widoczną na sensorze strefy w Home Assistant - to zależy wyłącznie od tego, co zapiszesz w polu \"Wydajność\" poniżej, i od przełącznika \"Ucz się z wodomierza\" niżej. Dotyczy WSZYSTKICH typów (zraszacze/mikrozraszacze dostają wartość z tabeli, linia/pojedyncze kroplowniki - wyliczoną z parametrów). Jeśli integracja zdążyła się już czegoś nauczyć z przepływomierza, podpowiedź pokazuje WYUCZONĄ wartość zamiast wzoru. Podpowiedź pojawia się dopiero po zapisaniu i PONOWNYM wejściu w \"Konfiguruj\" tej strefy - nie od razu przy pierwszym wypełnieniu. Jeśli wyłączone, ręcznie wpisana wartość w polu \"Wydajność\" poniżej zostaje bez zmian na zawsze - w tym formularzu.",
-          "zone1_adjust_runtime_from_flow": "Strefa 1: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone2_adjust_runtime_from_flow": "Strefa 2: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone3_adjust_runtime_from_flow": "Strefa 3: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone4_adjust_runtime_from_flow": "Strefa 4: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone5_adjust_runtime_from_flow": "Strefa 5: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone6_adjust_runtime_from_flow": "Strefa 6: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone7_adjust_runtime_from_flow": "Strefa 7: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone8_adjust_runtime_from_flow": "Strefa 8: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone9_adjust_runtime_from_flow": "Strefa 9: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone10_adjust_runtime_from_flow": "Strefa 10: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone11_adjust_runtime_from_flow": "Strefa 11: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo.",
-          "zone12_adjust_runtime_from_flow": "Strefa 12: Automatycznie dostosuj czas podlewania zgodny z pomiarem zużycia (wymaga przepływomierza) - czas timera/watchdoga to wtedy ZAWSZE maksymalny czas ustawiony dla strefy, żeby nigdy nie przeszkodzić wydłużaniu. UWAGA: przy włączonym dostosowywaniu sumaryczny czas całej sekwencji może nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie, jeśli wybrano tryb \"zacznij przed wschodem\" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem się harmonogramu co do minuty. Po wyłączeniu: czas timera/watchdoga to dokładnie wyliczony czas dla strefy, bez wydłużania ani skracania na żywo."
-        }
-      },
-      "location": {
-        "title": "Lokalizacja ogrodu",
-        "data": {
-          "garden_location": "Lokalizacja ogrodu"
-        }
-      }
-    }
-  },
-  "issues": {
-    "valve_open_failed": {
-      "title": "Zawór nie potwierdził otwarcia",
-      "description": "Strefa {garden_irrigation_zone_name}, encja {entity_id}, nie potwierdziła otwarcia w wyznaczonym czasie. Sprawdź zasilanie, łączność i stan sterownika. Ta strefa została pominięta, reszta ogrodu działa dalej."
-    },
-    "valve_close_failed": {
-      "title": "Zawór nie potwierdził zamknięcia - sprawdź ręcznie!",
-      "description": "Strefa {garden_irrigation_zone_name}, encja {entity_id}, nie potwierdziła zamknięcia w wyznaczonym czasie. To może oznaczać, że zawór fizycznie nadal jest otwarty. Sprawdź ręcznie jak najszybciej. Reszta sekwencji podlewania została przerwana dla bezpieczeństwa."
-    },
-    "missing_zone_entity": {
-      "title": "Brakująca encja strefy",
-      "description": "Strefa {garden_irrigation_zone_name} jest skonfigurowana z encją {entity_id}, która nie istnieje w Home Assistant. Sprawdź, czy urządzenie jest podłączone, albo popraw konfigurację integracji."
-    },
-    "missing_temp_sensor": {
-      "title": "Brak czujnika temperatury",
-      "description": "Nie skonfigurowano czujnika temperatury - bez niego ET0 (a więc cały bilans wodny) nie może być liczone, więc integracja nigdy nie zaproponuje podlewania. Dodaj czujnik temperatury w konfiguracji integracji (krok Stacja pogodowa)."
-    },
-    "runtime_too_short": {
-      "title": "Za niski limit czasu podlewania strefy",
-      "description": "Strefa {garden_irrigation_zone_name}: maksymalny czas podlewania jest ustawiony na {configured_min} min, ale pełne napełnienie strefy korzeniowej od zera (np. po urlopie albo serii dni pominiętych z powodu deszczu) wymaga ok. {required_min} min. Przy obecnym ustawieniu integracja nigdy nie zdąży dolać pełnej dawki. Rozważ podniesienie limitu w konfiguracji strefy (pole 'Maksymalny czas podlewania') do co najmniej {required_min} min, z niewielkim zapasem."
-    }
-  }
-}
+# Garden Irrigation
+
+*[Polski / Polish version: README.md](README.md)*
+
+A custom Home Assistant integration for smart, multi-sensor garden irrigation. Instead of a
+time-based schedule, the integration keeps a per-zone **soil water balance**: it calculates how
+much water each plant loses through evapotranspiration (from real data provided by your weather
+station), subtracts actually measured rainfall, and decides on its own when and for how long to
+water - taking into account the soil, the selected plants, the rain forecast, and any rain
+falling during the watering itself.
+
+## What the integration does
+
+- Calculates daily **ET0** (reference evapotranspiration) using the FAO-56 Penman-Monteith
+  method, based on temperature, solar radiation, wind, and humidity from your weather station.
+  When full data isn't available, it automatically falls back to the Hargreaves method.
+- Maintains a balance for each zone: the **soil water deficit** grows by ETc (= ET0 × plant Kc)
+  and shrinks by measured rainfall and by water actually delivered during watering.
+- When the deficit exceeds a threshold that depends on the soil and the selected plants, the
+  zone gets a "needs watering" status with a concrete recommendation in minutes.
+- Can run **fully automatically** (no clicking anything) or **manually** (you decide when to
+  approve) - selectable in the configuration.
+- Opens valves **sequentially, one after another**, calculating the start time backwards from
+  sunrise so that the last zone finishes watering roughly at sunrise.
+- If it starts raining during watering - it **pauses** the valve, waits to see whether it's just
+  a brief shower, and either resumes from where it left off or cancels the rest if the rain
+  persists.
+- Recognizes both `switch.*` and `valve.*` entities (e.g. Tuya controllers).
+- Can set a hardware watchdog on the controller (a `number.*` timer entity) so the valve closes
+  itself even if Home Assistant were to hang.
+- Skips watering in strong wind (sprinkler zones) and in frost-risk conditions (the whole
+  system), respects a minimum interval between waterings for a given zone (to encourage roots to
+  grow deeper), and has a single switch for globally pausing everything (e.g. while on holiday).
+- Corrects the MAD threshold every night using the official FAO-56 formula based on yesterday's
+  water-use rate - in hot/dry conditions the threshold is automatically lower (and the minimum
+  interval between waterings is skipped for that day), in cool weather it's higher.
+- Tracks water-usage statistics (daily/monthly, per zone and total) and reports hardware problems
+  (missing entity, unresponsive valve) through Home Assistant's built-in Repairs mechanism.
+
+## Installation
+
+1. Copy the `custom_components/garden_irrigation` folder into `config/custom_components/` on
+   your Home Assistant instance.
+2. Restart Home Assistant.
+3. Settings → Devices & Services → Add Integration → search for
+   **"Ogród - Inteligentne Nawadnianie"** (Garden Irrigation).
+4. Go through the three wizard steps: weather → number of zones → zone details (described
+   below).
+
+The configuration can be changed at any later time: the integration's card → **Configure**. This
+opens the exact same wizard, pre-filled with the current values - you only change what you want.
+
+## Step 1: weather station and global settings
+
+**All fields in this step are optional** - the integration can be set up with zero weather
+sensors and have them added gradually. Without temperature (the one truly required sensor - even
+the fallback ET0 method needs it), the water balance won't run, but the integration will tell you
+about it via Settings → System → Repairs instead of silently doing nothing.
+
+| Field | Meaning |
+|---|---|
+| Temperature | The temperature entity from your weather station |
+| Solar radiation (W/m²) | Used for the Penman-Monteith ET0 calculation |
+| Wind speed (m/s) | Used for ET0. **Automatically converts the unit** (km/h, mph, knots) to m/s based on the sensor's `unit_of_measurement` - most weather stations report wind in km/h, so you don't need to convert anything yourself |
+| Relative humidity (%) | Used for ET0 |
+| Rainfall - cumulative counter / total rain (mm) | **Must be a counter that never resets** (only ever increases) - NOT a typical "daily rainfall" value that resets at midnight. The integration checks it every update cycle and computes the difference from the previous reading, so it can reduce the water deficit continuously (not just once a day). If your station only offers a daily variant, you can add an HA `utility_meter` helper with no reset cycle to get a cumulative version |
+| Weather service entity (`weather.*`) | Optional - the integration fetches the rain forecast itself via the `weather.get_forecasts` service, no need to build your own template |
+| How many upcoming forecast hours to sum | Time horizon for summing the forecast rainfall (default 6h) |
+| How often to poll the weather service | A separate, independent polling interval for the forecast (default 60 min) - the forecast doesn't need to be very fresh, and some weather services have rate limits |
+| Rain forecast (mm) - legacy option | An alternative to the above: your own template/sensor with the forecast, used only if the `weather_entity` field is left empty |
+| Rain threshold for SKIPPING watering entirely (mm) | If the forecast shows rainfall ≥ this threshold, the zone is skipped entirely for that day (not just given a smaller dose) |
+| Start mode | See the "When exactly does watering start" section below |
+| Offset in minutes | Only used for the "before/after sunrise" modes |
+| Fast "is it raining now" detector | Optional - a `binary_sensor` (dedicated rain sensor) OR a plain numeric `sensor` with rain intensity in mm/h (e.g. `sensor.your_weather_station_rain_rate`) - the integration recognizes the type from the entity's domain. For a numeric sensor, it compares the value against the "Rain intensity threshold (mm/h)". Speeds up detecting the start of rain during watering (see the pause section) |
+| Rain threshold that triggers a pause DURING watering (mm) | How much rain (mm) must fall before the integration interrupts active watering (default 0.3 mm) |
+| How often to check rainfall while running/paused | Check frequency during active watering and during a pause (default 2 min) |
+| Max wait time for rain to stop | After this time the integration stops waiting for confirmation of quiet and resumes anyway (default 30 min) |
+| Enable fully automatic watering | See the "Automatic mode" section below |
+| Safety buffer for the trigger calculation (min) | See the "Automatic mode" section |
+| Weather data polling frequency (min) | How often the REMAINING sensors are polled (temperature, wind, total rain, etc.) - default 10 min |
+| Atmospheric pressure sensor | Optional - the list is filtered to entities with `device_class: pressure`. If you provide a real measurement, the integration uses it instead of the barometric formula computed from elevation. **Choose ABSOLUTE/station pressure** (for Ecowitt/WS stations usually `sensor.your_station_absolute_pressure`), **not "relative"** (relative pressure is sea-level-adjusted - not correct for the FAO-56 formula). **Note:** the device-class filter can NOT distinguish absolute/relative/VPD if all three share the same `device_class: pressure` (a common case with templates) - a deliberate choice by entity name matters, not the class. `sensor.*vapour_pressure_deficit` (VPD) is a completely different physical quantity and is not suitable as a pressure sensor despite sharing the same class/unit. Recognizes hPa/mbar/kPa/inHg/mmHg units - assumes hPa (the most common in HA) for an unrecognized unit |
+| Delay between closing one zone and opening the next (s) | Default 5s - the integration waits this long after a confirmed valve closure before opening the next one in sequence |
+| Valve open/close confirmation timeout (s) | Default 15s - how long the integration polls the valve entity's state before considering the command to have failed |
+| Main flow meter - cumulative liters | Optional - if you have ONE shared meter for the whole system (typical with sequential watering, where only one zone runs at a time anyway), point it here. Zones without their own flow meter will use it automatically |
+| Main flow meter - INSTANTANEOUS flow | Same, but for instantaneous measurement (e.g. L/min) - used for extra verification that the valve actually opened/closed (see "Sequential zone activation with verification") |
+| No-flow threshold | Below this flow value, the integration considers there to be no water (valve actually closed) |
+| Wind threshold above which... | Wind threshold (m/s) above which zones marked as wind-sensitive are skipped (typically sprinklers - drift/uneven coverage) |
+| Temperature threshold below which... | Temperature threshold (°C) below which ALL watering is paused (frost risk - hoses, valves) |
+
+## Step 2: garden location
+
+Defaults to your home (from HA's general configuration) - drag the pin if the garden is
+elsewhere. Used to calculate ET0 and sunrise.
+
+## Step 3: number of zones
+
+How many irrigation zones do you want to configure? In the next step you'll only fill in the
+ones you actually use - leave the rest blank.
+
+## Step 4: details for each zone
+
+| Field | Meaning |
+|---|---|
+| Zone name | E.g. "Lawn", "Pots" - if left blank, defaults to "Zone N" |
+| Valve / switch entity | `switch` or `valve` - blank = zone inactive |
+| Flow meter | Optional, a more accurate measurement of water used |
+| Soil type | Determines how much water the soil can retain (see the soil table below) |
+| Plants | One or more from the list (see the plant table below) - determine Kc, root depth, and the drought-sensitivity threshold |
+| Manual Kc calibration | Optional - a numeric value entirely replaces the Kc calculated from the selected plants. Blank = use the calculated value |
+| Manual MAD calibration | Same, for the MAD threshold |
+| Root depth from a selected plant | Optional - a dropdown built from plants **already saved** for this zone (sorted ascending by Kc, with Kc shown in the label), letting you deliberately replace the automatic maximum with one specific plant - useful when one deep-rooted plant in the mix (e.g. a single tree among shrubs/perennials) would artificially inflate the whole zone's capacity for the rest. **The list is empty on the first configuration of a zone** (the form cannot read plants being selected in the same step) - it appears only after saving and re-entering "Configure". Blank = automatic maximum (as before) |
+| Area (m²) | For sprinklers - the whole zone area; for drip lines - the estimated **wetted strip along the line** (length × wetted-strip width), not the whole ground area |
+| Irrigation type | Sprinklers / Micro-sprinklers / Drip line / Individual emitters - affects how the **default, suggested** value of the "Application rate" field below is calculated (see the "Irrigation type" section below) |
+| Drip line length (m) | Only for the "Drip line" type - ignored for other types (visible in the form, but has no effect) |
+| Emitter spacing (cm) | Only for "Drip line" - the distance between emitters along the line |
+| Single emitter flow rate (L/h) | For "Drip line" OR "Individual emitters" - usually printed on the packaging |
+| Number of emitters (units) | Only for "Individual emitters" - when you don't have a line, just individual emitters in the bed |
+| Application rate (mm/h) | **Suggested automatically** based on the irrigation type and its parameters (see below) - a starting point, editable by hand, **self-corrected later** based on real flow-meter measurements, if enabled (see "Learn from flow meter" below). If you don't have a flow meter, this value stays fixed. **Allowed range: 0.5-500 mm/h** - that may look like a lot, but small zones (e.g. pots) with a decent flow can legitimately reach 200+ mm/h - it's just the math (L/h ÷ a small area), not a bug |
+| Learn the application rate from the flow meter | Enabled by default (if the zone has a flow meter) - disable it if you want the application rate to ALWAYS stay exactly what you typed manually, even when the flow meter says otherwise |
+| Maximum watering time (min) | A hard safety limit - the integration will never exceed this value, regardless of any calculation |
+| Watchdog timer (`number.*`) | Optional - if the controller has a hardware per-zone timer, the integration writes the current, remaining time to it just before every valve opening (see "Hardware watchdog") |
+| Minimum interval between waterings (days) | Default 0 (no limit). Even if the deficit crosses the threshold earlier, the zone won't be watered more often than every this many days - this encourages the root system to grow deeper for water instead of getting used to shallow, daily watering |
+| Wind-sensitive zone | Check this for sprinklers (doesn't make much sense for drip) - the zone will be skipped in strong wind (global threshold) |
+
+### How demand is calculated with several plants in one zone
+
+When you select several plants with different needs in one zone (e.g. conifers + hydrangeas on
+one drip line), the integration takes a **conservative** approach:
+- **Kc** and **root depth** are taken from the most demanding of the selected plants (so none of
+  them dries out) - **root depth can be deliberately overridden** by picking from the list (see
+  "Root depth from a selected plant" above), if one deep-rooted plant in a small proportion is
+  distorting the whole zone's capacity for the rest of the plants,
+- the **MAD threshold** is taken from the most sensitive plant (the lowest threshold = watering
+  kicks in earliest) - **this parameter deliberately has no equivalent manual dropdown selection**
+  (only the numeric manual calibration above, if genuinely needed) - it's the one parameter that
+  directly protects the most sensitive plant from drying out, so keeping it fully automatic
+  minimizes the risk of accidentally picking too tolerant a value.
+
+This may mean slightly overwatering the most drought-tolerant plants in the zone, in exchange for
+certainty that the sensitive ones don't dry out. Which specific parameter was taken from which
+plant is visible in the diagnostic sensors described below - if, after watching the garden, you
+want to correct this, use the manual Kc/MAD calibration fields rather than changing the plant
+selection.
+
+### Soil types
+
+| Soil | Available water (mm per meter of depth) |
+|---|---|
+| Sand | 80 |
+| Loamy sand | 120 |
+| Sandy loam (light) | 130 |
+| Loam (medium, all-purpose) | 155 |
+| Silt loam (heavy, dense) | 180 |
+| Clay / heavy clay | 185 |
+| Potting mix / general-purpose soil | 100 |
+
+### Plants
+
+| Plant | Kc | Root depth | MAD |
+|---|---|---|---|
+| Ornamental lawn | 0.80 | 150 mm | 0.40 |
+| Leafy vegetables | 1.00 | 300 mm | 0.50 |
+| Root vegetables | 0.90 | 350 mm | 0.50 |
+| Strawberries / wild strawberries | 0.85 | 200 mm | 0.40 |
+| Roses | 0.60 | 400 mm | 0.50 |
+| Garden perennials (general) | 0.70 | 300 mm | 0.45 |
+| Hydrangeas | 0.80 | 300 mm | 0.35 |
+| Hostas | 0.70 | 250 mm | 0.40 |
+| Tall ornamental grasses | 0.55 | 400 mm | 0.55 |
+| Ornamental deciduous shrubs | 0.55 | 400 mm | 0.50 |
+| Formal deciduous hedge | 0.60 | 400 mm | 0.45 |
+| Coniferous hedge / shrubs | 0.45 | 450 mm | 0.55 |
+| Large conifers (fir, pine, spruce) | 0.40 | 600 mm | 0.60 |
+| Yews | 0.45 | 450 mm | 0.55 |
+| Creeping conifers | 0.40 | 300 mm | 0.55 |
+| Mature deciduous trees | 0.50 | 700 mm | 0.60 |
+| Fruit trees | 0.65 | 600 mm | 0.50 |
+| Potted plants (general) | 0.90 | 200 mm | 0.30 |
+
+## Rain measurement (total rain)
+
+The rainfall entity **must be a cumulative counter that never resets**. The integration checks
+it on every update cycle (every 10 minutes by default) and computes the difference from the
+previous reading - if more water has accumulated, it's immediately subtracted from every zone's
+deficit. This means rain falling at, say, 2:00 AM is already accounted for before the integration
+would start watering at 4:00 AM - there's no need to wait for the next midnight.
+
+Additionally, right before every approval/start, the integration checks this counter freshly
+again (it doesn't rely on a reading that could be several minutes old). If the counter resets
+(e.g. the weather station restarts), the integration detects the drop and simply starts counting
+the difference again from scratch, without a false "negative rainfall".
+
+## Rain forecast and skipping watering entirely
+
+Independent of measured rainfall, the integration also checks the forecast (from a `weather.*`
+entity or your own template) and compares it against the `rain_skip_threshold_mm` threshold. If
+the forecast shows more rain than this threshold, that zone is **skipped entirely** for the day -
+the water deficit is remembered and will be caught up the next day if the rain doesn't
+materialize. The forecast is checked twice: once during the nightly recalculation, and once more,
+freshly, right before the actual start.
+
+## Pause during watering
+
+The integration watches the weather not just before starting, but **throughout the entire active
+watering session**:
+
+- Every `rain_pause_check_interval_min` minutes it checks whether it has started raining - first
+  via a fast binary detector (if configured), otherwise via the total-rain difference.
+- If so - it **immediately closes the valve**.
+- During the pause the integration **sums up all the rain that has fallen** and compares it with
+  that zone's target - **if the rain alone already covers the need**, watering is considered
+  unnecessary (status: `deficit covered by rain during the pause`), regardless of whether it's
+  still raining at that moment.
+- If the rain has **not** yet covered the whole need, the integration waits for
+  `rain_stop_confirmation_min` minutes of **uninterrupted** absence of rain before considering
+  the rain to be over (not after the first clean check - rain often falls in waves rather than
+  continuously; without this safeguard the valve would keep opening and closing with every gap
+  between waves, needlessly wearing out the solenoid valve mechanically).
+- **The integration never gives up on watering purely because of how long it's raining.** If
+  waiting for confirmation of quiet exceeds `rain_pause_max_wait_min`, it simply stops waiting and
+  **resumes anyway** - the only reason to abandon watering entirely is that the rain itself has
+  already covered the need (see above).
+- **After resuming, the target is recalculated** - reduced by exactly how many mm fell during
+  THIS particular pause. Water already delivered from the mains during this session (before the
+  pause) keeps being counted without interruption (volume-based control tracks this across the
+  whole session, regardless of how many pauses occur) - **nothing starts over from scratch**,
+  neither because of rain nor because of water already delivered before the pause.
+
+## Sunrise calculated independently
+
+The integration **does not rely on any external entity** (e.g. `sensor.sun_next_rising`) to
+determine sunrise time - it calculates it itself, based on the garden's location and elevation
+(see the ET0 section above), using the `astral` library (the same one the built-in Sun
+integration in Home Assistant is based on). `astral` is a hard dependency of the built-in Sun
+integration, so it's already present on your system - this integration doesn't declare it as its
+own requirement (so that HA doesn't try to additionally install it from PyPI on startup, which
+could fail e.g. if there's no internet access at that moment, and would crash the whole
+integration with a "Requirements ... not found" error). If `astral` were somehow unavailable
+anyway, the rest of the integration (water balance, manual watering) still works normally - only
+the sunrise-dependent features (the sequence, automatic mode) turn themselves off, with a clear
+message in the logs.
+
+## When exactly does watering start
+
+Zones are always started **one after another**, never in parallel (useful with limited water
+pressure). Exactly when the first zone starts is determined by the "Start mode" field in the
+configuration:
+
+| Mode | How the start is calculated |
+|---|---|
+| Finish the last zone at sunrise (default) | `start = sunrise − total_minutes_of_all_zones` - so the last zone finishes roughly at sunrise. The total changes every day depending on how many zones actually need water |
+| Start exactly at sunrise | `start = sunrise`, regardless of how long it takes |
+| Start X minutes BEFORE sunrise | `start = sunrise − X` (fixed offset, set by the "Offset in minutes" field) |
+| Start X minutes AFTER sunrise | `start = sunrise + X` (fixed offset) |
+
+If the calculated start would fall in the past (e.g. the total time is too large for the "finish
+at sunrise" mode), the sequence starts immediately, without waiting.
+
+This can also be triggered manually: the "Schedule sequence before sunrise" button, or the
+`garden_irrigation.run_sequence_before_sunrise` service.
+
+## Fully automatic mode
+
+Enabled by default (`auto_mode_enabled`). With no external automation at all, the integration
+does the following every day:
+
+1. Calculates the "wake up" moment as the reference point of the selected start mode (see above)
+   minus a safety buffer. For the "finish at sunrise" mode, the reference point is deliberately
+   an UPPER estimate (the sum of the MAXIMUM times of all zones) - the exact start is
+   recalculated precisely in step 2 anyway.
+2. At that moment, freshly recalculates the water balance and checks rainfall, the forecast,
+   wind, and frost.
+3. Starts the sequence with the exact start time calculated from the current data.
+
+The trigger is automatically recalculated every night during the nightly recalculation (nothing
+needs to be listened to externally - the integration calculates tomorrow's sunrise itself). To
+disable automatic mode and go back to manual approval - uncheck `auto_mode_enabled` in the
+configuration, or enable the global pause switch (see below). The manual approval buttons and
+services always work, regardless of these settings.
+
+**Catching up after an HA restart in the trigger window.** The integration's internal timer
+(the `async_track_point_in_time` mechanism) **does not survive an HA restart** - that's normal,
+no timer scheduled in a process's memory survives a restart. If a restart happens exactly within
+the narrow window between the calculated "wake up" moment and the actual sunrise, the integration
+**detects this** on startup (the scheduled time has already passed, but today's sequence hasn't
+run yet and sunrise hasn't happened yet) and starts the sequence **right away, with a few
+seconds' delay**, instead of silently waiting until tomorrow and losing a whole day's watering.
+If, on the other hand, sunrise has already passed, or the sequence has already run today -
+nothing further happens, it waits for the next sunrise as usual.
+
+**Second layer of safety - a periodic safety net.** The above only protects against a restart in
+the critical window - but what if the scheduled timer, for any OTHER reason, simply doesn't fire
+(an unhandled exception, a brief HA hang), without any restart at all? To guard against that
+scenario, on **every** main update cycle (roughly every 10 min) the integration checks: is
+automatic mode enabled, has today's sequence not run yet, and is there no live scheduled timer -
+if all three conditions are met, it re-invokes the same scheduling logic (with the same
+catch-up mechanism described above). Deliberately, there is **no hard-coded time window** here
+(e.g. "1:00-7:00") - the window in which the safety net can act follows **directly from your
+configuration** (start mode, sunrise, buffer), so it automatically adapts to the season and your
+settings, instead of being a guess on my part.
+
+## Hardware watchdog
+
+If your irrigation controller has a hardware per-zone timer (typically a `number.*` entity, where
+the written value causes the controller itself to close the valve automatically, independent of
+Home Assistant), point it out in the "Watchdog timer" field for that zone. The behavior depends
+on a single switch: **"Automatically adjust the watering duration based on measured
+consumption"** (enabled by default, requires a flow meter) - this one decision controls two
+related things at once, not separately:
+
+- **Enabled**: the watering duration can be extended/shortened live according to the flow meter
+  (see "Volume-based control" above), and the watchdog is set to the **whole configured safety
+  limit of the zone** (`max_runtime_min`, minus time already used in this session) - so the
+  controller never physically cuts off the valve before the integration has had a chance to reach
+  the volume target. Still protects against an HA hang - if HA stops responding, the controller
+  will close the valve itself, at the latest once that limit elapses.
+- **Disabled**: purely time-based, with no live extension/shortening (even if the zone has a flow
+  meter - it's still used for measuring consumption and self-calibration, just not for adjusting
+  this particular session's duration), and the watchdog is set exactly to the calculated/
+  remaining time of this session - tighter protection, consistent with the fact that the
+  integration never intends to water longer than that anyway.
+
+**Important caveat with adjustment enabled:** the total time of the whole sequence may not finish
+exactly at sunrise or at the scheduled start time, if the "start before sunrise" mode is selected
+- delivering the correct amount of water takes priority over sticking to the schedule to the
+minute.
+
+## Where the data for the ET0 calculation comes from
+
+Besides the data from your weather station, the FAO-56 Penman-Monteith method requires two
+additional quantities: **atmospheric pressure** (for the psychrometric constant) and, indirectly,
+**elevation above sea level** (because standard pressure depends on elevation). The integration
+handles this as follows:
+
+- **Pressure**: if you provide a pressure sensor in the configuration, a **real measurement** is
+  used (more accurate, since it accounts for the current weather system, not just elevation). If
+  you don't provide one - pressure is calculated with the standard FAO-56 barometric formula from
+  elevation above sea level (still accurate enough for irrigation purposes).
+- **Latitude**: from the selected garden location (Step 2 - the map), if set; otherwise directly
+  from HA's general configuration. **Elevation** is always taken directly from HA's general
+  configuration (Settings → System → General) - the map step doesn't cover it.
+
+In practice, for most home gardens the difference between the home's location and the garden's
+actual location is negligible. **The same location is also used to calculate sunrise
+independently** (see the section below) - the integration doesn't need any additional entity for
+that.
+
+## Irrigation type
+
+Four types per zone, each calculated differently:
+
+- **Sprinklers** / **Micro-sprinklers** - no conceptual changes compared to the rest of the
+  model: the whole zone area, application rate in mm/h directly. The type only changes the
+  **suggested default value** of the application rate (sprinklers ~12 mm/h, micro-sprinklers
+  ~6 mm/h) - a starting point for adjustment, not something enforced.
+
+- **Drip line** - a different model: **the zone area is ignored**, only the line length matters.
+  Assumed simplification: the line is run right next to the plants. From the length and spacing,
+  the integration calculates the number of emitters, and from that and their flow rate - the
+  total flow, and from the **effective area** (length × an assumed wetted-strip width of 40 cm) -
+  the application rate in mm/h, so it can be tied into the common water-balance model (Kc/MAD/
+  soil all operate purely in mm). That same effective area (not the "zone area" field) is also
+  used to convert actually delivered liters into mm - so both sides of the calculation stay
+  consistent.
+
+- **Individual emitters** - for beds with a few individual emitters (typically pots/planters),
+  with no line and no spacing: number of emitters × their flow rate, divided by the **zone area
+  from the form** (used normally, just like for sprinklers).
+
+**All four types only produce a SUGGESTED value** in the "Application rate" field - you can
+always override it manually, and if the zone has a flow meter and learning is enabled, it will
+still be corrected over time based on real measurements (see below).
+
+**The "Automatically calculate the application rate from the irrigation type" field** (enabled by
+default) applies **ONLY to this form** - what shows up as the suggestion in the "Application
+rate" field below when you open the configuration. It does **not control** the actual rate used
+for watering, nor the value shown on the zone's sensor (`sensor.<zone>_application_rate`) in Home
+Assistant - that depends solely on what you actually save in the "Application rate" field, and on
+the "Learn from flow meter" switch (see below), independent of this field. It applies to **all
+four types** (sprinklers/micro-sprinklers get a table value, drip line/individual emitters get a
+value calculated from their parameters). If you want to be sure your manually entered value is
+**never** overwritten the next time you visit "Configure" (e.g. because you know the real
+pressure in your setup differs from the nominal table value) - turn this field off. The value in
+the "Application rate" field will then stay exactly what you last saved - in this form.
+
+**Priority over the static formula: the self-learned value from the flow meter.** If the
+integration has already learned something from real measurements (see "Self-calibration" below),
+the form's suggestion shows the **learned** value instead of the generic table/formula value -
+more trustworthy, since it's based on actual water usage in your garden, not on nominal packaging
+data. **The calibration itself is never lost when you re-enter the configuration** - regardless
+of what you save in the "Application rate" field, actual watering keeps using the learned value
+(as long as "Learn from flow meter" stays enabled) - this mechanism lives in a separate,
+persistent data store of the integration, not in the zone's configuration itself.
+
+**Note - these two switches are INDEPENDENT of each other; one does not "disable" the other.**
+Turning off "Automatically calculate" only protects what you see in this form - it has no effect
+on "Learn from flow meter". If you want **complete, absolute certainty** that your manually
+entered value governs actual watering, and the integration will never replace it with a learned
+number - you must turn off **both** options, not just the first one.
+
+**Technical limitation:** the suggested value for drip line/individual emitters is calculated
+from parameters **already saved** in the zone's previous configuration (the HA form can't read
+fields being filled in during the same step) - when first setting up a zone, fill in the
+"Application rate" field manually; it will be calculated automatically only after saving and
+re-entering "Configure".
+
+## Self-calibration of the zone's application rate from the flow meter
+
+If a zone has a flow meter attached, the integration **learns** its real application rate instead
+of relying solely on the value entered manually in the configuration, which is often only a rough
+"by eye" approximation from sprinkler/drip specifications.
+
+After every watering in which the valve was open for at least one minute and a real flow-meter
+reading is available (not an estimate), the integration calculates: `measured_rate =
+delivered_depth (mm) / runtime (h)`, and updates it with an exponentially weighted moving average
+(newer measurements count more than older ones, so the model keeps up with real changes - e.g. a
+clogged emitter, a drop in mains pressure). A single, extremely unrealistic reading (e.g. a
+flow-meter glitch) is rejected, so it doesn't corrupt the whole learned history.
+
+**The learned value automatically replaces the manual one in all calculations** (the watering
+threshold, the required time, the safety-limit check in Repairs) - nothing needs to be switched
+manually. It's visible in `sensor.<zone>_application_rate`, together with the manual value, the
+sample count, and the last individual measurement in the attributes - for comparison and
+verification.
+
+Without a flow meter, self-calibration doesn't work (there's nothing to learn from) - the manual
+value keeps being used permanently, as before. **Even with a flow meter**, you can deliberately
+turn this off per zone with the "Learn the application rate from the flow meter" switch (enabled
+by default) - useful if you want full, predictable control over the manually entered value and
+never want the integration to change it.
+
+## Volume-based control (for zones with a flow meter and adjustment enabled)
+
+Zones with a connected flow meter **and** the "Automatically adjust the watering duration based
+on measured consumption" switch enabled (see "Hardware watchdog" below - it's one shared
+decision) are no longer watered "by time" - the integration measures **actually delivered water
+on the fly** (every `rain_pause_check_interval_min`, the same cycle used for checking rain) and
+closes the valve once the delivered volume reaches the calculated target (recommended mm ×
+zone area) - **regardless of whether that happens faster or slower than the initial time
+estimate**:
+
+- **Faster than estimated** (higher actual rate than assumed): the valve closes earlier - no
+  overwatering.
+- **Slower than estimated** (pressure drop, slower flow): watering is **automatically extended**
+  beyond the original estimate, until the target is reached - limited only by the hard safety
+  limit `max_runtime_min`, which is never exceeded regardless of anything else. If the limit is
+  reached without delivering the full calculated amount, the integration logs a warning (worth
+  checking the pressure/rate at that point).
+
+This can mean a single watering (or the whole sequence, if this affects one of the queued zones)
+runs past the originally intended start time, or even past sunrise itself - considered
+acceptable, because delivering the correct amount of water matters more than sticking rigidly to
+the schedule to the minute.
+
+Zones **without** a flow meter, or with the adjustment switch disabled, work as before - purely
+by time, with no ability to confirm or extend (in the first case there's simply nothing to
+measure the actual delivered amount with; in the second, it's a deliberate choice of a tighter,
+predictable duration).
+
+Manually forcing a zone via the `garden_irrigation.run_zone` service **always** respects exactly
+the given number of minutes, without volume-based control - it's a deliberate "water exactly this
+much" command, not "water until enough".
+
+How the last watering ended is visible in the `sensor.<zone>_recommended_watering` attributes:
+- `last_watering_completion_method`: `volume_reached` / `time` / `safety_limit`
+- `last_watering_planned_runtime_min` / `_actual_runtime_min` / `_extension_min`
+
+## Sequential zone activation with verification
+
+Valves are always opened **strictly one at a time, never in parallel**. For each zone, starting
+with the first, the integration:
+
+1. Sends the command to open the valve.
+2. **Polls the entity's state every 1 second**, until it confirms the valve has actually opened
+   (or `valve_verify_timeout_sec`, 15s by default, elapses). If you have an instantaneous flow
+   meter configured (main or per-zone), verification **additionally** requires the flow to exceed
+   the no-flow threshold - a stronger confirmation than the entity state alone, since it catches
+   e.g. a valve that reports "open" but hasn't physically opened. A missing flow-meter reading
+   doesn't block verification - in that case only the entity state is used, as if this option
+   weren't set. If the valve doesn't open - it logs an error, skips that zone, and **continues
+   with the next one** (one faulty zone doesn't block the rest of the garden).
+3. After the watering time is up, it sends the close command.
+4. **Polls the state again** (and the instantaneous flow, if configured - it must drop below the
+   threshold), until it confirms closure. This is also the moment the state-change event triggers
+   a reading of the CUMULATIVE flow meter (if connected) and calculates the water used. If the
+   valve doesn't confirm closure within the time limit - the integration logs an ERROR-level
+   message and **stops the rest of the sequence** (doesn't open the next zone until it's certain
+   the previous one is safely closed - this avoids e.g. a pressure drop from two simultaneously
+   open/leaking zones).
+5. Only after confirmed closure does it wait `zone_transition_delay_sec` (5s by default) and move
+   on to opening the next zone in order, repeating from step 1.
+
+The same verification mechanism also applies to a single manual zone activation (button /
+`run_zone` service), not just within a sequence.
+
+## Minimum interval between waterings
+
+The water-balance model itself already naturally leads to less frequent, deeper watering than a
+time-based schedule - but if you want a hard guarantee (e.g. to deliberately train roots to
+reach deeper), set `min_days_between_watering` for a given zone. Even if the water deficit
+crosses the threshold earlier, the zone will wait until that many days have passed since the
+last actual watering - the deficit keeps growing in the meantime (nothing is zeroed out or lost),
+the recommendation is simply held back until the minimum interval has passed.
+
+### Dynamic MAD threshold adjustment per FAO-56 (and automatic bypass in a heatwave)
+
+The MAD threshold is **no longer a fixed number** from the selected plants - the integration
+corrects it every night with the official FAO-56 formula (chapter 8), based on yesterday's
+water-use rate (ETc):
+
+```
+adjusted_threshold = base_threshold + 0.04 × (5 − ETc)     [clamped to the 0.1-0.8 range]
+```
+
+The physical rationale: in hot/dry conditions (high ETc), the plant starts to suffer **earlier**,
+because the roots can't keep up with such high atmospheric demand for water, even before the soil
+dries out to a "normal" level - the threshold is then automatically **lower**, so watering kicks
+in sooner. In cool, cloudy weather the threshold is **higher** - the soil can safely dry out more
+before it becomes a problem.
+
+**This automatically resolves the tension between the minimum interval and a heatwave**, with no
+manual intervention: when yesterday's ETc exceeds 5 mm/day (exactly the threshold at which the
+FAO-56 correction turns negative - the official definition of "hot, dry conditions"), **the
+minimum interval between waterings is automatically bypassed for that day**, for that zone. You
+don't need to manually raise or lower anything ahead of an expected heatwave - the model detects
+it itself from real weather data and lifts the rigid limit for one day, instead of waiting until
+the plant actually starts to suffer.
+
+The effective (adjusted) threshold, the base value, yesterday's ETc, and whether the bypass
+kicked in today are all visible in the `sensor.<zone>_mad_threshold` attributes.
+
+This whole mechanism can be turned off **on the fly**, without reconfiguring the integration -
+via the `switch.garden_irrigation_dynamic_mad_enabled` switch ("Dynamic MAD adjustment
+(FAO-56)"). Disabling it restores the fixed, base MAD threshold (from the selected plants/manual
+calibration), with no daily adjustment and no automatic bypass of the minimum interval. The
+`dynamic_mad_enabled` field in the setup wizard only sets the **initial** value on first
+installation - later changes are actually controlled by this switch, not the wizard.
+
+## Protection against wind and frost
+
+- **Wind**: zones marked as `wind_sensitive` (typically sprinklers - drift, uneven coverage) are
+  skipped when the current wind speed exceeds `wind_skip_threshold_ms`. Checked freshly right
+  before starting (just like rain).
+- **Frost**: if the current temperature drops below `frost_threshold_c`, **all** watering (every
+  zone) is paused for that day - this is a risk to the whole system (hoses, valves), not just a
+  particular plant. Checked every night and freshly before starting.
+
+Neither check resets the deficit - if watering is skipped on a given day, it will catch up at the
+next opportunity, once conditions allow.
+
+## Global switch (holiday mode)
+
+The `switch.wstrzymaj_cale_podlewanie` entity ("pause all watering") - when on, it blocks
+EVERYTHING: manual approval, `approve_all`, the pre-sunrise sequence, and automatic mode, until
+it's turned off. Useful while traveling, during garden work, or when the water is physically shut
+off. The water deficit keeps being calculated during this time (nothing is lost) - once the pause
+is turned off, the integration will simply propose watering according to the current state.
+
+## Water-usage statistics
+
+Available as separate sensors (see below) - daily, monthly, and yearly usage per zone and for
+the whole garden combined, calculated from the same data as the water balance (a real flow-meter
+reading if connected, otherwise an estimate from runtime and the application rate). Daily
+counters reset at midnight, monthly on the first of the month, yearly on January 1st.
+
+## Home Assistant Repairs notices
+
+The integration uses HA's built-in Repairs mechanism (Settings → System → Repairs) to report
+issues that need your attention, instead of hiding them only in the logs:
+
+- **Missing zone entity** - checked at integration startup, if a configured valve doesn't exist
+  in HA.
+- **Zone watering time limit too low** - checked at startup: if the configured `max_runtime_min`
+  is shorter than the time needed to fully refill the root zone from empty (at the current
+  sprinkler/drip application rate), the integration will never manage to deliver the full dose
+  after a longer break (holiday, a series of days skipped due to rain) - the notice includes the
+  exact, calculated value the limit should be raised to.
+- **Valve did not confirm opening** - informational, that one zone was skipped, the rest continue
+  normally.
+- **Valve did not confirm closing** - more serious, since it may have been left physically open;
+  the rest of the sequence is stopped for safety, worth checking manually as soon as possible.
+
+Notices disappear automatically once the problem is resolved (e.g. the valve starts responding
+correctly again).
+
+## Predictable entity IDs
+
+Every entity gets a forced, stable `entity_id` in the format
+`<domain>.garden_irrigation_<zone_NN>_<english_suffix>` (e.g.
+`sensor.garden_irrigation_zone_01_recommended_watering`,
+`switch.garden_irrigation_irrigation_paused`) - the **integration prefix** minimizes the risk of
+colliding with other entities in your HA, and using **the zone's number instead of its
+descriptive name** (`zone_01`, `zone_02`...) avoids absurdly long identifiers if you give a zone
+a long name, and doesn't change even if you rename it later - only the displayed label
+(`friendly_name`) changes, not the technical identifier. The zone number corresponds to its
+position in the configuration (the `zoneN_*` field), not its display order. Entity names
+(`friendly_name`, shown in the UI) stay fully translated and are built from the name you gave the
+zone - only the technical `entity_id` behind the scenes stays fixed.
+
+**Important:** this only works reliably for **newly created** entities - HA's entity registry
+keeps an `entity_id` permanently once assigned, even after the integration's code changes. If
+you're upgrading from an earlier version (rather than installing from scratch), existing entities
+keep their current identifiers - to get the new ones, you'd need to remove the integration and
+add it again (a fresh registry).
+
+## Intraday preview (the "projected" sensors)
+
+The main water deficit and watering recommendation are recalculated **once a day** (the nightly
+recalculation) plus **freshly right before starting** - these are the only values that actually
+drive watering, and deliberately don't change during the day outside those two moments.
+
+Alongside them, there's a **separate, purely informational pair of sensors** per zone:
+`sensor.<zone>_projected_soil_water_deficit` and `sensor.<zone>_projected_watering_time`. They
+grow **smoothly throughout the day** - the integration spreads the daily water loss (ETc) into
+small increments every update cycle (together with rainfall subtracted on the fly), instead of
+waiting for the next midnight. This lets you see "live" how the system is assessing the
+situation at any given moment of the day.
+
+**Important details about these sensors** (so you know where you stand):
+- The intraday spread of water loss is **uniform over time**, not weighted by the real rhythm of
+  evapotranspiration (which in nature is concentrated during the day, nearly zero at night) -
+  this is a deliberate simplification, not an attempt at maximum accuracy.
+- **The minute value in `_projected_watering_time` is ALWAYS a pure function of the projected
+  deficit** - exactly the same relationship as in the main sensor (time = required mm /
+  application rate), with no exceptions and never zeroed by anything. Information about what
+  *currently* would block approval (rain/forecast/wind/frost/minimum interval) is a **separate
+  `blocked_by` attribute** (a list of reasons, or `null`) - it never changes the minute value
+  itself, only adds context alongside it.
+- `blocked_by` is refreshed **once an hour**, not every cycle (10 min) - wind and temperature
+  naturally jump around from minute to minute, so checking more often would give a flickering
+  result (blocked → not blocked → blocked within a single hour). The deficit and the minute
+  value itself still update smoothly every 10 minutes - the throttling only applies to this one
+  contextual attribute.
+- **They don't affect any actual decision** - this is purely a preview. The only source of truth
+  for whether and when watering actually happens remains the main sensors
+  (`_recommended_watering`, `_soil_water_deficit`) and the logic described in the rest of this
+  document.
+
+## Available entities
+
+**Sensors:**
+- `sensor.garden_irrigation_et0_yesterday` - ET0 calculated for the previous day
+- `sensor.garden_irrigation_weather_inputs` ("Weather inputs") - for verifying nothing is being
+  missed: the main value is the method used yesterday (`penman_monteith` / `hargreaves` /
+  `no_data`); attributes: a live reading right now (temperature, solar radiation, humidity,
+  wind), the exact inputs from yesterday (tmax/tmin/tmean, averaged solar/wind/humidity, sample
+  count for each), the rain forecast (mm and when it was fetched), the raw total-rain counter,
+  `rain_measured_today_mm` (the sum of counter increments since the last midnight, actually
+  subtracted from every zone's deficit - not a raw reading, a genuinely computed daily total),
+  `nightly_forecast` (a persistent snapshot from the last nightly recalculation - the forecast
+  value, the threshold, whether it was held back - overwritten only at the NEXT nightly
+  recalculation, not during the day), and `last_forecast_check` (the most recent forecast check
+  from ANY source - night / before zone approval / before the sequence / hourly refresh - with a
+  description of when and from where, overwritten at every subsequent check)
+- per zone, `sensor.<zone>_recommended_watering` additionally has a
+  `rain_during_current_pause_mm` attribute - a live sum of rain measured since this specific zone
+  was paused for rain (updated every check cycle, visible during the pause itself, not just
+  afterwards)
+- `sensor.next_sequence_start_time` - the start time of the nearest scheduled sequence (a
+  timestamp entity). Attributes: status (`scheduled`/`running`/`done`/`cancelled_rain`/
+  `no_zones`), the planned sunrise, the total duration, and the full order and planned start
+  time of every zone
+- per zone, `sensor.<zone>_recommended_watering` - a value in minutes, attributes: status, mm,
+  the reason for skipping, how the last watering ended (see "Volume-based control")
+- per zone, `sensor.<zone>_soil_water_deficit` - the current deficit in mm
+- per zone, `sensor.<zone>_soil_water_level` / `_soil_water_level_live` - the inverse of the
+  deficit: how much water is actually present in the root zone right now (mm and % of capacity
+  in the attributes) - the first updates at the same rate as the main deficit, the second
+  smoothly through the day like the "live" sensors
+- per zone, `sensor.<zone>_projected_soil_water_deficit` / `_projected_watering_time` - a
+  purely informational, intraday-growing preview (see the section above)
+- per zone, `sensor.<zone>_soil_plant_parameters` - the value is the list of selected plants;
+  attributes show the soil, the adopted Kc/depth/MAD, and the full breakdown of ALL selected
+  plants with their individual parameters
+- per zone, `sensor.<zone>_kc_value` - the numeric Kc used in the balance, with a "taken from"
+  attribute (the plant name, or "manual calibration") and a full plant→Kc list for every plant
+  selected in that zone
+- per zone, `sensor.<zone>_mad_threshold` - the same, for the (FAO-56-adjusted) MAD threshold
+- per zone, `sensor.<zone>_min_days_between_watering` - the configured number of days (0 = no
+  limit), with attributes: the date of the last watering, days elapsed, whether it's active today
+- per zone, `sensor.<zone>_max_runtime` - the configured safety limit (min), with a
+  `required_full_refill_min` attribute (how much is actually needed to fully refill the root
+  zone from empty) and `too_low` (True/False)
+- per zone, `sensor.<zone>_area` (m²)
+- per zone, `sensor.<zone>_application_rate` (mm/h) - the effective rate (learned if already
+  available, otherwise manual), with attributes: manual value, learned value, sample count, last
+  measurement
+- per zone, `sensor.<zone>_water_used_today` / `_water_used_this_month` / `_water_used_this_year`
+  (liters)
+- per zone, `sensor.<zone>_water_used_last_watering` (liters) - just the most recent, single
+  watering (not a sum), with a `when` attribute
+- `sensor.total_water_today` / `_this_month` / `_this_year` (liters, whole garden)
+- `sensor.garden_irrigation_total_water_last` - the sum of the most recent single watering of
+  EVERY zone individually (not necessarily the same day for all of them), with a per-zone
+  breakdown in the attributes
+
+**Switches:**
+- `switch.garden_irrigation_irrigation_paused` - global pause (holiday mode), see above
+- `switch.garden_irrigation_dynamic_mad_enabled` - turns the dynamic FAO-56 MAD adjustment on/off
+  (see "Minimum interval between waterings")
+
+**Binary sensors:**
+- per zone, `binary_sensor.<zone>_rain_paused` - on when THAT zone is currently paused because of
+  rain during watering
+- `binary_sensor.any_zone_rain_paused` - on when ANY zone is paused; an attribute lists the paused
+  zones
+
+**Buttons:**
+- per zone "approve and run" / "skip today"
+- "Approve all pending zones"
+- "Schedule sequence before sunrise"
+
+## Services
+
+| Service | Parameters | Action |
+|---|---|---|
+| `garden_irrigation.approve_zone` | `zone_id` | Approves and starts the recommendation for one zone (with a fresh rain/forecast check) |
+| `garden_irrigation.approve_all` | - | Approves all pending zones, one after another |
+| `garden_irrigation.skip_zone` | `zone_id` | Cancels today's recommendation without watering |
+| `garden_irrigation.run_zone` | `zone_id`, `minutes` | Manually runs a zone for a given time, independent of the recommendation |
+| `garden_irrigation.run_sequence_before_sunrise` | - | Builds and schedules the sequence of all approved zones, calculating the start backwards from sunrise |
+
+## Calibration
+
+The system starts with reasonable default values (Kc, MAD, soil water capacity), but these are
+approximations - your garden, microclimate, and actual soil conditions may differ. After the
+first 2-3 weeks of observation:
+
+- If a plant is drying out despite regular watering - lower the MAD threshold for that zone (the
+  "Manual MAD calibration" field, e.g. from 0.45 to 0.35) - this will make watering start
+  earlier.
+- If a zone is being overwatered - raise the MAD threshold, or lower Kc (the "Manual Kc
+  calibration" field) - this will slow the growth of the deficit and make watering less frequent.
+- `sensor.<zone>_kc_value` and `sensor.<zone>_mad_threshold` show exactly which value is
+  currently in use and where it came from (which plant, or manual calibration) - a good starting
+  point for deciding what to adjust.
+
+## Things worth being aware of
+
+- The watering sequence and the "wake up" wait in automatic mode run as background tasks inside a
+  running Home Assistant instance - they are **not** persisted to a database or replayed after a
+  restart. An HA restart while waiting for the start will interrupt that night's scheduled
+  watering.
+- The exact shape of the data returned by `weather.get_forecasts` can differ between weather
+  integrations - if a warning about a failed forecast fetch appears in the logs after configuring
+  a `weather.*` entity, check manually in Developer Tools → Services by calling
+  `weather.get_forecasts` with `type: hourly` on your entity (some integrations only support a
+  daily forecast, not hourly).
+- The integration deliberately does **not** send push notifications (e.g. on a rain pause) - the
+  state is always visible in the sensors/attributes, but nobody gets woken up at night by their
+  phone. If you'd still like notifications, the simplest approach is to add your own HA
+  automation listening for changes to `binary_sensor.any_zone_rain_paused` or the state of
+  `sensor.*_recommended_watering`.
+- The zone fields in the setup wizard have translated, descriptive labels for the first 12 zones
+  - with more zones, the additional fields still work, just without a translated label.
