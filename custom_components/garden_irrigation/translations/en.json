@@ -1,6 +1,6 @@
 {
+  "title": "Garden - Smart Irrigation",
   "config": {
-    "title": "Garden - Smart Irrigation",
     "step": {
       "user": {
         "title": "Weather station",
