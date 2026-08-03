@@ -788,7 +788,7 @@ class TotalWaterLastWateringSensor(CoordinatorEntity, SensorEntity):
         total = 0.0
         for zstate in self.coordinator.data["zones"].values():
             total += zstate.get("water_last_watering_l") or 0.0
-        return round(total, 2)
+        return round(total, 1)
 
     @property
     def extra_state_attributes(self):

@@ -1348,19 +1348,24 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             if liters_delivered > 0:
                 self._maybe_roll_water_stats_month()
                 self._maybe_roll_water_stats_year()
-                zstate["water_today_l"] = round(zstate.get("water_today_l", 0.0) + liters_delivered, 2)
-                zstate["water_month_l"] = round(zstate.get("water_month_l", 0.0) + liters_delivered, 2)
-                zstate["water_year_l"] = round(zstate.get("water_year_l", 0.0) + liters_delivered, 2)
-                zstate["water_last_watering_l"] = round(liters_delivered, 2)
+                # zaokrąglenie do 0,1 L (nie 0,01) - to faktyczna, prawdziwa
+                # granica precyzji typowego licznika wody (device_class water),
+                # który sam raportuje objętość w m³ z ograniczoną liczbą miejsc
+                # po przecinku (np. 0,0001 m³ = 0,1 L) - druga cyfra po przecinku
+                # sugerowałaby precyzję, której odczyt fizycznie nie ma
+                zstate["water_today_l"] = round(zstate.get("water_today_l", 0.0) + liters_delivered, 1)
+                zstate["water_month_l"] = round(zstate.get("water_month_l", 0.0) + liters_delivered, 1)
+                zstate["water_year_l"] = round(zstate.get("water_year_l", 0.0) + liters_delivered, 1)
+                zstate["water_last_watering_l"] = round(liters_delivered, 1)
                 zstate["last_watering_at"] = dt_util.now().isoformat()
                 self._data["water_today_total_l"] = round(
-                    self._data.get("water_today_total_l", 0.0) + liters_delivered, 2
+                    self._data.get("water_today_total_l", 0.0) + liters_delivered, 1
                 )
                 self._data["water_month_total_l"] = round(
-                    self._data.get("water_month_total_l", 0.0) + liters_delivered, 2
+                    self._data.get("water_month_total_l", 0.0) + liters_delivered, 1
                 )
                 self._data["water_year_total_l"] = round(
-                    self._data.get("water_year_total_l", 0.0) + liters_delivered, 2
+                    self._data.get("water_year_total_l", 0.0) + liters_delivered, 1
                 )
                 zstate["last_watered"] = dt_util.now().date().isoformat()
 

@@ -570,7 +570,10 @@ Dostępne jako osobne sensory (patrz niżej) - dobowe, miesięczne i roczne zuż
 oraz łącznie dla całego ogrodu, liczone z tych samych danych co bilans wodny (realny odczyt
 przepływomierza, jeśli podłączony, w przeciwnym razie oszacowanie z czasu pracy i wydajności).
 Liczniki dobowe zerują się o północy, miesięczne pierwszego dnia miesiąca, roczne pierwszego
-stycznia.
+stycznia. **Zaokrąglane do 0,1 L** (nie do 0,01 L) - to realna granica precyzji typowego
+licznika wody w Home Assistant (`device_class: water`), który sam raportuje objętość w m³ z
+ograniczoną liczbą miejsc po przecinku; wyświetlanie drugiego miejsca po przecinku sugerowałoby
+precyzję, której odczyt fizycznie nie ma.
 
 ## Zgłoszenia w Home Assistant Repairs
 

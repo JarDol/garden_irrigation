@@ -566,7 +566,11 @@ is turned off, the integration will simply propose watering according to the cur
 Available as separate sensors (see below) - daily, monthly, and yearly usage per zone and for
 the whole garden combined, calculated from the same data as the water balance (a real flow-meter
 reading if connected, otherwise an estimate from runtime and the application rate). Daily
-counters reset at midnight, monthly on the first of the month, yearly on January 1st.
+counters reset at midnight, monthly on the first of the month, yearly on January 1st. **Rounded
+to 0.1 L** (not 0.01 L) - this is the real precision ceiling of a typical water meter in Home
+Assistant (`device_class: water`), which itself reports volume in m³ with a limited number of
+decimal places; showing a second decimal place would suggest a precision the reading physically
+doesn't have.
 
 ## Home Assistant Repairs notices
 
