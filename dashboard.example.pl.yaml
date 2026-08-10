@@ -1,0 +1,513 @@
+title: Ogród - Nawadnianie (przykład)
+icon: mdi:sprinkler-variant
+views:
+  # ============================================================
+  # ZAKŁADKA 1: GŁÓWNE
+  # ============================================================
+  - title: Główne
+    path: glowne
+    icon: mdi:water-pump
+    cards:
+      - type: entities
+        title: Sterowanie i status
+        show_header_toggle: false
+        entities:
+          - entity: switch.garden_irrigation_irrigation_paused
+            name: Wyłącznik globalny (tryb urlopowy)
+          - entity: switch.garden_irrigation_dynamic_mad_enabled
+            name: Dynamiczna korekta MAD (FAO-56)
+          - entity: sensor.garden_irrigation_sequence_start_time
+            name: Najbliższy start sekwencji
+          - entity: sensor.garden_irrigation_et0_yesterday
+            name: ET0 (wczoraj)
+          - entity: binary_sensor.garden_irrigation_any_zone_rain_paused
+            name: Wstrzymane z powodu deszczu
+
+      - type: entities
+        title: Zużycie wody - cały ogród
+        show_header_toggle: false
+        entities:
+          - entity: sensor.garden_irrigation_total_water_today
+            name: Dziś
+          - entity: sensor.garden_irrigation_total_water_last
+            name: Podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_total_water_month
+            name: W tym miesiącu
+          - entity: sensor.garden_irrigation_total_water_year
+            name: W tym roku
+
+      - type: entities
+        title: Akcje
+        show_header_toggle: false
+        entities:
+          - entity: button.garden_irrigation_approve_all
+            name: Zatwierdź wszystkie oczekujące strefy
+          - entity: button.garden_irrigation_schedule_sunrise_sequence
+            name: Zaplanuj sekwencję przed wschodem
+
+  # ============================================================
+  # ZAKŁADKA 2: SENSORY (przegląd diagnostyczny per strefa)
+  # ============================================================
+  - title: Sensory
+    path: sensory
+    icon: mdi:chart-box-outline
+    cards:
+      - type: entities
+        title: Strefa 1
+        entities:
+          - entity: sensor.garden_irrigation_zone_01_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_01_soil_water_deficit
+            name: Deficyt wody
+          - entity: sensor.garden_irrigation_zone_01_soil_water_level
+            name: Woda w glebie
+          - entity: sensor.garden_irrigation_zone_01_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_01_mad_threshold
+            name: Próg MAD
+          - entity: sensor.garden_irrigation_zone_01_min_days_between_watering
+            name: Minimalny odstęp (dni)
+          - entity: sensor.garden_irrigation_zone_01_max_runtime
+            name: Maksymalny czas podlewania
+          - entity: sensor.garden_irrigation_zone_01_area
+            name: Powierzchnia strefy
+          - entity: sensor.garden_irrigation_zone_01_application_rate
+            name: Wydajność (efektywna)
+          - entity: sensor.garden_irrigation_zone_01_water_used_last
+            name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_01_water_used_today
+            name: Zużycie dziś
+          - entity: sensor.garden_irrigation_zone_01_water_used_month
+            name: Zużycie w miesiącu
+          - entity: sensor.garden_irrigation_zone_01_water_used_year
+            name: Zużycie w roku
+          - entity: sensor.garden_irrigation_zone_01_projected_soil_water_deficit
+            name: Przewidywany deficyt (na żywo)
+          - entity: sensor.garden_irrigation_zone_01_projected_soil_water_level
+            name: Woda w glebie (na żywo)
+          - entity: sensor.garden_irrigation_zone_01_projected_watering_time
+            name: Przewidywany czas podlewania (na żywo)
+
+      - type: entities
+        title: Strefa 2
+        entities:
+          - entity: sensor.garden_irrigation_zone_02_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_02_soil_water_deficit
+            name: Deficyt wody
+          - entity: sensor.garden_irrigation_zone_02_soil_water_level
+            name: Woda w glebie
+          - entity: sensor.garden_irrigation_zone_02_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_02_mad_threshold
+            name: Próg MAD
+          - entity: sensor.garden_irrigation_zone_02_min_days_between_watering
+            name: Minimalny odstęp (dni)
+          - entity: sensor.garden_irrigation_zone_02_max_runtime
+            name: Maksymalny czas podlewania
+          - entity: sensor.garden_irrigation_zone_02_area
+            name: Powierzchnia strefy
+          - entity: sensor.garden_irrigation_zone_02_application_rate
+            name: Wydajność (efektywna)
+          - entity: sensor.garden_irrigation_zone_02_water_used_last
+            name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_02_water_used_today
+            name: Zużycie dziś
+          - entity: sensor.garden_irrigation_zone_02_water_used_month
+            name: Zużycie w miesiącu
+          - entity: sensor.garden_irrigation_zone_02_water_used_year
+            name: Zużycie w roku
+          - entity: sensor.garden_irrigation_zone_02_projected_soil_water_deficit
+            name: Przewidywany deficyt (na żywo)
+          - entity: sensor.garden_irrigation_zone_02_projected_soil_water_level
+            name: Woda w glebie (na żywo)
+          - entity: sensor.garden_irrigation_zone_02_projected_watering_time
+            name: Przewidywany czas podlewania (na żywo)
+
+      - type: entities
+        title: Strefa 3
+        entities:
+          - entity: sensor.garden_irrigation_zone_03_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_03_soil_water_deficit
+            name: Deficyt wody
+          - entity: sensor.garden_irrigation_zone_03_soil_water_level
+            name: Woda w glebie
+          - entity: sensor.garden_irrigation_zone_03_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_03_mad_threshold
+            name: Próg MAD
+          - entity: sensor.garden_irrigation_zone_03_min_days_between_watering
+            name: Minimalny odstęp (dni)
+          - entity: sensor.garden_irrigation_zone_03_max_runtime
+            name: Maksymalny czas podlewania
+          - entity: sensor.garden_irrigation_zone_03_area
+            name: Powierzchnia strefy
+          - entity: sensor.garden_irrigation_zone_03_application_rate
+            name: Wydajność (efektywna)
+          - entity: sensor.garden_irrigation_zone_03_water_used_last
+            name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_03_water_used_today
+            name: Zużycie dziś
+          - entity: sensor.garden_irrigation_zone_03_water_used_month
+            name: Zużycie w miesiącu
+          - entity: sensor.garden_irrigation_zone_03_water_used_year
+            name: Zużycie w roku
+          - entity: sensor.garden_irrigation_zone_03_projected_soil_water_deficit
+            name: Przewidywany deficyt (na żywo)
+          - entity: sensor.garden_irrigation_zone_03_projected_soil_water_level
+            name: Woda w glebie (na żywo)
+          - entity: sensor.garden_irrigation_zone_03_projected_watering_time
+            name: Przewidywany czas podlewania (na żywo)
+
+      - type: entities
+        title: Strefa 4
+        entities:
+          - entity: sensor.garden_irrigation_zone_04_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_04_soil_water_deficit
+            name: Deficyt wody
+          - entity: sensor.garden_irrigation_zone_04_soil_water_level
+            name: Woda w glebie
+          - entity: sensor.garden_irrigation_zone_04_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_04_mad_threshold
+            name: Próg MAD
+          - entity: sensor.garden_irrigation_zone_04_min_days_between_watering
+            name: Minimalny odstęp (dni)
+          - entity: sensor.garden_irrigation_zone_04_max_runtime
+            name: Maksymalny czas podlewania
+          - entity: sensor.garden_irrigation_zone_04_area
+            name: Powierzchnia strefy
+          - entity: sensor.garden_irrigation_zone_04_application_rate
+            name: Wydajność (efektywna)
+          - entity: sensor.garden_irrigation_zone_04_water_used_last
+            name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_04_water_used_today
+            name: Zużycie dziś
+          - entity: sensor.garden_irrigation_zone_04_water_used_month
+            name: Zużycie w miesiącu
+          - entity: sensor.garden_irrigation_zone_04_water_used_year
+            name: Zużycie w roku
+          - entity: sensor.garden_irrigation_zone_04_projected_soil_water_deficit
+            name: Przewidywany deficyt (na żywo)
+          - entity: sensor.garden_irrigation_zone_04_projected_soil_water_level
+            name: Woda w glebie (na żywo)
+          - entity: sensor.garden_irrigation_zone_04_projected_watering_time
+            name: Przewidywany czas podlewania (na żywo)
+
+      - type: entities
+        title: Strefa 5
+        entities:
+          - entity: sensor.garden_irrigation_zone_05_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_05_soil_water_deficit
+            name: Deficyt wody
+          - entity: sensor.garden_irrigation_zone_05_soil_water_level
+            name: Woda w glebie
+          - entity: sensor.garden_irrigation_zone_05_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_05_mad_threshold
+            name: Próg MAD
+          - entity: sensor.garden_irrigation_zone_05_min_days_between_watering
+            name: Minimalny odstęp (dni)
+          - entity: sensor.garden_irrigation_zone_05_max_runtime
+            name: Maksymalny czas podlewania
+          - entity: sensor.garden_irrigation_zone_05_area
+            name: Powierzchnia strefy
+          - entity: sensor.garden_irrigation_zone_05_application_rate
+            name: Wydajność (efektywna)
+          - entity: sensor.garden_irrigation_zone_05_water_used_last
+            name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_05_water_used_today
+            name: Zużycie dziś
+          - entity: sensor.garden_irrigation_zone_05_water_used_month
+            name: Zużycie w miesiącu
+          - entity: sensor.garden_irrigation_zone_05_water_used_year
+            name: Zużycie w roku
+          - entity: sensor.garden_irrigation_zone_05_projected_soil_water_deficit
+            name: Przewidywany deficyt (na żywo)
+          - entity: sensor.garden_irrigation_zone_05_projected_soil_water_level
+            name: Woda w glebie (na żywo)
+          - entity: sensor.garden_irrigation_zone_05_projected_watering_time
+            name: Przewidywany czas podlewania (na żywo)
+
+      - type: entities
+        title: Strefa 6
+        entities:
+          - entity: sensor.garden_irrigation_zone_06_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_06_soil_water_deficit
+            name: Deficyt wody
+          - entity: sensor.garden_irrigation_zone_06_soil_water_level
+            name: Woda w glebie
+          - entity: sensor.garden_irrigation_zone_06_kc_value
+            name: Kc
+          - entity: sensor.garden_irrigation_zone_06_mad_threshold
+            name: Próg MAD
+          - entity: sensor.garden_irrigation_zone_06_min_days_between_watering
+            name: Minimalny odstęp (dni)
+          - entity: sensor.garden_irrigation_zone_06_max_runtime
+            name: Maksymalny czas podlewania
+          - entity: sensor.garden_irrigation_zone_06_area
+            name: Powierzchnia strefy
+          - entity: sensor.garden_irrigation_zone_06_application_rate
+            name: Wydajność (efektywna)
+          - entity: sensor.garden_irrigation_zone_06_water_used_last
+            name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_06_water_used_today
+            name: Zużycie dziś
+          - entity: sensor.garden_irrigation_zone_06_water_used_month
+            name: Zużycie w miesiącu
+          - entity: sensor.garden_irrigation_zone_06_water_used_year
+            name: Zużycie w roku
+          - entity: sensor.garden_irrigation_zone_06_projected_soil_water_deficit
+            name: Przewidywany deficyt (na żywo)
+          - entity: sensor.garden_irrigation_zone_06_projected_soil_water_level
+            name: Woda w glebie (na żywo)
+          - entity: sensor.garden_irrigation_zone_06_projected_watering_time
+            name: Przewidywany czas podlewania (na żywo)
+
+  # ============================================================
+  # ZAKŁADKA 3: STREFY (widok roboczy - status + akcje)
+  # ============================================================
+  - title: Strefy
+    path: strefy
+    icon: mdi:sprinkler
+    cards:
+      - type: entities
+        title: Strefa 1
+        entities:
+          - entity: sensor.garden_irrigation_zone_01_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_01_soil_water_deficit
+            name: Deficyt wody
+          - entity: binary_sensor.garden_irrigation_zone_01_rain_paused
+            name: Wstrzymane (deszcz)
+          - entity: sensor.garden_irrigation_zone_01_recommended_watering
+            name: Opad podczas pauzy (atrybut)
+            attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: button.garden_irrigation_zone_01_approve_and_run
+            name: Zatwierdź i uruchom
+          - entity: button.garden_irrigation_zone_01_skip_today
+            name: Pomiń dzisiaj
+
+      - type: entities
+        title: Strefa 2
+        entities:
+          - entity: sensor.garden_irrigation_zone_02_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_02_soil_water_deficit
+            name: Deficyt wody
+          - entity: binary_sensor.garden_irrigation_zone_02_rain_paused
+            name: Wstrzymane (deszcz)
+          - entity: sensor.garden_irrigation_zone_02_recommended_watering
+            name: Opad podczas pauzy (atrybut)
+            attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: button.garden_irrigation_zone_02_approve_and_run
+            name: Zatwierdź i uruchom
+          - entity: button.garden_irrigation_zone_02_skip_today
+            name: Pomiń dzisiaj
+
+      - type: entities
+        title: Strefa 3
+        entities:
+          - entity: sensor.garden_irrigation_zone_03_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_03_soil_water_deficit
+            name: Deficyt wody
+          - entity: binary_sensor.garden_irrigation_zone_03_rain_paused
+            name: Wstrzymane (deszcz)
+          - entity: sensor.garden_irrigation_zone_03_recommended_watering
+            name: Opad podczas pauzy (atrybut)
+            attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: button.garden_irrigation_zone_03_approve_and_run
+            name: Zatwierdź i uruchom
+          - entity: button.garden_irrigation_zone_03_skip_today
+            name: Pomiń dzisiaj
+
+      - type: entities
+        title: Strefa 4
+        entities:
+          - entity: sensor.garden_irrigation_zone_04_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_04_soil_water_deficit
+            name: Deficyt wody
+          - entity: binary_sensor.garden_irrigation_zone_04_rain_paused
+            name: Wstrzymane (deszcz)
+          - entity: sensor.garden_irrigation_zone_04_recommended_watering
+            name: Opad podczas pauzy (atrybut)
+            attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: button.garden_irrigation_zone_04_approve_and_run
+            name: Zatwierdź i uruchom
+          - entity: button.garden_irrigation_zone_04_skip_today
+            name: Pomiń dzisiaj
+
+      - type: entities
+        title: Strefa 5
+        entities:
+          - entity: sensor.garden_irrigation_zone_05_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_05_soil_water_deficit
+            name: Deficyt wody
+          - entity: binary_sensor.garden_irrigation_zone_05_rain_paused
+            name: Wstrzymane (deszcz)
+          - entity: sensor.garden_irrigation_zone_05_recommended_watering
+            name: Opad podczas pauzy (atrybut)
+            attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: button.garden_irrigation_zone_05_approve_and_run
+            name: Zatwierdź i uruchom
+          - entity: button.garden_irrigation_zone_05_skip_today
+            name: Pomiń dzisiaj
+
+      - type: entities
+        title: Strefa 6
+        entities:
+          - entity: sensor.garden_irrigation_zone_06_recommended_watering
+            name: Zalecane podlewanie
+          - entity: sensor.garden_irrigation_zone_06_soil_water_deficit
+            name: Deficyt wody
+          - entity: binary_sensor.garden_irrigation_zone_06_rain_paused
+            name: Wstrzymane (deszcz)
+          - entity: sensor.garden_irrigation_zone_06_recommended_watering
+            name: Opad podczas pauzy (atrybut)
+            attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: button.garden_irrigation_zone_06_approve_and_run
+            name: Zatwierdź i uruchom
+          - entity: button.garden_irrigation_zone_06_skip_today
+            name: Pomiń dzisiaj
+
+  # ============================================================
+  # ZAKŁADKA 4: INFO (żywe parametry stref + statyczny słownik)
+  # ============================================================
+  - title: Info
+    path: info
+    icon: mdi:information-outline
+    cards:
+      - type: markdown
+        title: Dane wejściowe pogody (weryfikacja)
+        content: >
+          **Metoda ET0 (wczoraj):** {{ states('sensor.garden_irrigation_weather_inputs') }}
+
+          **Teraz (żywy odczyt czujników):**
+          - Temperatura: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_temperatura_c') }} °C
+          - Nasłonecznienie: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_naslonecznienie_wm2') }} W/m²
+          - Wilgotność: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_wilgotnosc_pct') }} %
+          - Wiatr: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'teraz_wiatr_ms') }} m/s
+
+          **Wczoraj (dane wejściowe ET0):**
+          {% set w = state_attr('sensor.garden_irrigation_weather_inputs', 'wczoraj') %}
+          {% if w %}
+          - Data: {{ w.data }}
+          - Tmax / Tmin / Tmean: {{ w.tmax_c }} / {{ w.tmin_c }} / {{ w.tmean_c }} °C
+          - Nasłonecznienie średnie: {{ w.naslonecznienie_srednie_wm2 }} W/m² ({{ w.liczba_probek_naslonecznienia }} próbek)
+          - Wiatr średni: {{ w.wiatr_sredni_ms }} m/s ({{ w.liczba_probek_wiatru }} próbek)
+          - Wilgotność średnia: {{ w.wilgotnosc_srednia_pct }} % ({{ w.liczba_probek_wilgotnosci }} próbek)
+          {% else %}
+          - Brak jeszcze zapisanej migawki (pojawi się po najbliższej północy)
+          {% endif %}
+
+          **Opad:**
+          - Prognoza (najświeższy odczyt): {{ state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_opadu_mm') }} mm (pobrana: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_opadu_pobrana_o') }})
+          - **Maksimum prognozy z ostatnich {{ state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_okno_min') }} min (to realnie decyduje o wstrzymaniu):** {{ state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_max_w_oknie_mm') }} mm
+          - Licznik total rain: {{ state_attr('sensor.garden_irrigation_weather_inputs', 'opad_licznik_calkowity_mm') }} mm ({{ state_attr('sensor.garden_irrigation_weather_inputs', 'opad_licznik_encja') }})
+          - **Zmierzony dzisiaj (od północy):** {{ state_attr('sensor.garden_irrigation_weather_inputs', 'opad_zmierzony_dzisiaj_mm') }} mm - realnie odjęte od deficytu wszystkich stref
+
+          **Prognoza brana pod uwagę:**
+          {% set noc = state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_nocna') %}
+          {% if noc %}
+          - Ostatnie nocne przeliczenie ({{ noc.data }}): {{ noc.prognoza_mm }} mm (próg: {{ noc.prog_mm }} mm) - {{ 'wstrzymano' if noc.wstrzymano else 'bez wstrzymania' }}
+          {% else %}
+          - Brak jeszcze zapisanej migawki nocnej (pojawi się po najbliższej północy)
+          {% endif %}
+          {% set ost = state_attr('sensor.garden_irrigation_weather_inputs', 'prognoza_ostatnie_sprawdzenie') %}
+          {% if ost %}
+          - Ostatnie sprawdzenie ({{ ost.zrodlo }}, {{ ost.kiedy }}): {{ ost.prognoza_mm }} mm (próg: {{ ost.prog_mm }} mm) - {{ 'wstrzymano' if ost.wstrzymano else 'bez wstrzymania' }}
+          {% else %}
+          - Brak jeszcze żadnego sprawdzenia
+          {% endif %}
+
+      - type: markdown
+        title: Parametry aktywne w Twoich strefach (na żywo)
+        content: |
+          {%- set strefy = {
+            'zone_01': 'Strefa 1',
+            'zone_02': 'Strefa 2',
+            'zone_03': 'Strefa 3',
+            'zone_04': 'Strefa 4',
+            'zone_05': 'Strefa 5',
+            'zone_06': 'Strefa 6'
+          } -%}
+          {%- for slug, nazwa in strefy.items() %}
+          {%- set param = 'sensor.garden_irrigation_' ~ slug ~ '_soil_plant_parameters' %}
+          {%- set kc = 'sensor.garden_irrigation_' ~ slug ~ '_kc_value' %}
+          {%- set mad = 'sensor.garden_irrigation_' ~ slug ~ '_mad_threshold' %}
+
+          ### {{ nazwa }}
+          - **Gleba:** {{ state_attr(param, 'gleba') }}
+          - **Rośliny:** {{ state_attr(param, 'wybrane_rosliny') | join(', ') if state_attr(param, 'wybrane_rosliny') else 'brak danych' }}
+          - **Przyjęte Kc:** {{ states(kc) }} (od: {{ state_attr(kc, 'przyjete_od') }})
+          - **Przyjęty próg MAD:** {{ states(mad) }} (od: {{ state_attr(mad, 'przyjete_od') }})
+          - **Dostępna woda w glebie:** {{ state_attr(param, 'dostepna_woda_gleby_mm_na_m') }} mm/m głębokości
+          {%- endfor %}
+
+      - type: markdown
+        title: Słownik - typy gleb (pojemność wodna)
+        content: |
+          | Gleba | Dostępna woda (mm na metr głębokości) |
+          |---|---|
+          | Piasek | 80 |
+          | Piasek gliniasty | 120 |
+          | Glina piaszczysta (lekka) | 130 |
+          | Glina (średnia, uniwersalna) | 155 |
+          | Pył gliniasty (ciężka, zwięzła) | 180 |
+          | Ił / glina ciężka | 185 |
+          | Substrat donicowy / ziemia uniwersalna | 100 |
+
+      - type: markdown
+        title: Słownik - rośliny (Kc / głębokość korzeni / MAD)
+        content: |
+          | Roślina | Kc | Głębokość korzeni | MAD |
+          |---|---|---|---|
+          | Trawnik ozdobny | 0.80 | 150 mm | 0.40 |
+          | Warzywa liściaste | 1.00 | 300 mm | 0.50 |
+          | Warzywa korzeniowe | 0.90 | 350 mm | 0.50 |
+          | Truskawki / poziomki | 0.85 | 200 mm | 0.40 |
+          | Róże | 0.60 | 400 mm | 0.50 |
+          | Byliny ogrodowe (ogólnie) | 0.70 | 300 mm | 0.45 |
+          | Hortensje | 0.80 | 300 mm | 0.35 |
+          | Funkie / hosty | 0.70 | 250 mm | 0.40 |
+          | Wysokie trawy ozdobne | 0.55 | 400 mm | 0.55 |
+          | Krzewy liściaste ozdobne | 0.55 | 400 mm | 0.50 |
+          | Żywopłot liściasty formowany | 0.60 | 400 mm | 0.45 |
+          | Żywopłot / krzewy iglaste | 0.45 | 450 mm | 0.55 |
+          | Duże iglaki (jodły, sosny, świerki) | 0.40 | 600 mm | 0.60 |
+          | Cisy | 0.45 | 450 mm | 0.55 |
+          | Płożące iglaki | 0.40 | 300 mm | 0.55 |
+          | Drzewa liściaste dojrzałe | 0.50 | 700 mm | 0.60 |
+          | Drzewa owocowe | 0.65 | 600 mm | 0.50 |
+          | Rośliny w donicach (ogólnie) | 0.90 | 200 mm | 0.30 |
+
+      - type: markdown
+        title: Słownik - domyślna wydajność wg typu nawadniania
+        content: |
+          | Typ nawadniania | Domyślna wydajność | Jak jest wyliczana |
+          |---|---|---|
+          | Zraszacze | 12,0 mm/h | Stała wartość z tabeli |
+          | Mikrozraszacze | 6,0 mm/h | Stała wartość z tabeli |
+          | Linia kroplująca | brak stałej - zawsze wyliczana | (długość / rozstaw) × wydajność kroplownika, podzielone przez efektywną powierzchnię (długość × 0,4 m zwilżanego pasa) |
+          | Pojedyncze kroplowniki | brak stałej - zawsze wyliczana | (liczba kroplowników × wydajność kroplownika), podzielone przez powierzchnię strefy |
+
+          To tylko **punkt startowy** w polu "Wydajność" przy konfiguracji strefy (o ile
+          włączone "Wyliczaj automatycznie") - zawsze można nadpisać ręcznie, a jeśli strefa ma
+          przepływomierz i włączone "Ucz się z wodomierza", z czasem i tak zostanie
+          samoczynnie skorygowana na podstawie rzeczywistych pomiarów.
+
+      - type: markdown
+        title: Jak liczony jest bilans wodny (przypomnienie)
+        content: |
+          - **ETc (dobowe zużycie wody przez roślinę)** = ET0 × Kc
+          - **Deficyt wody w glebie** rośnie o ETc, maleje o zmierzony opad i dostarczoną wodę
+          - **Próg podlewania** = (AWC gleby × głębokość korzeni / 1000) × MAD
+          - Przy kilku roślinach w jednej strefie: **Kc i głębokość korzeni** - od najbardziej
+            wymagającej rośliny, **MAD** - od najbardziej wrażliwej (najniższy próg)

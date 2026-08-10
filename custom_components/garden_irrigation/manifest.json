@@ -1,0 +1,14 @@
+{
+  "domain": "garden_irrigation",
+  "name": "Garden - Smart Irrigation",
+  "codeowners": [
+    "@JarDol"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/JarDol/garden_irrigation",
+  "integration_type": "hub",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/JarDol/garden_irrigation/issues",
+  "requirements": [],
+  "version": "1.16.1"
+}
