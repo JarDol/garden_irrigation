@@ -42,6 +42,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         entities.append(ZoneRateSensor(coordinator, entry, zid, zone))
         entities.append(ZoneWaterTodaySensor(coordinator, entry, zid, zone))
         entities.append(ZoneWaterLastWateringSensor(coordinator, entry, zid, zone))
+        entities.append(ZoneScheduledWaterLastWateringSensor(coordinator, entry, zid, zone))
         entities.append(ZoneWaterMonthSensor(coordinator, entry, zid, zone))
         entities.append(ZoneWaterYearSensor(coordinator, entry, zid, zone))
     async_add_entities(entities)
@@ -767,6 +768,36 @@ class ZoneWaterLastWateringSensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self):
         zstate = self.coordinator.data["zones"].get(str(self._zid), {})
         return {"kiedy": zstate.get("last_watering_at")}
+
+
+class ZoneScheduledWaterLastWateringSensor(CoordinatorEntity, SensorEntity):
+    """To samo co 'zużycie wody podczas ostatniego podlewania', ale liczone
+    WYŁĄCZNIE z podlewań pochodzących z harmonogramu integracji (zatwierdzenie/
+    approve_all, sekwencja przed wschodem, stadia wzrostu) - ręczne testy
+    usługą run_zone (np. 5-sekundowe sprawdzenie zaworu) NIE nadpisują tej
+    wartości, więc zawsze pokazuje faktyczną historię harmonogramu."""
+
+    _attr_icon = "mdi:water-check-outline"
+    _attr_native_unit_of_measurement = "L"
+
+    def __init__(self, coordinator: GardenIrrigationCoordinator, entry: ConfigEntry, zid: int, zone: dict) -> None:
+        super().__init__(coordinator)
+        self._zid = zid
+        self._attr_unique_id = f"{entry.entry_id}_zone{zid}_water_last_scheduled"
+        self._attr_name = f"{zone['name']} - zużycie wody podczas ostatniego podlewania z harmonogramu"
+        self._attr_suggested_object_id = f"garden_irrigation_{zone['slug']}_water_used_last_scheduled"
+        self.entity_id = f"sensor.{self._attr_suggested_object_id}"
+        self._attr_device_info = _device_info(entry)
+
+    @property
+    def native_value(self):
+        zstate = self.coordinator.data["zones"].get(str(self._zid), {})
+        return zstate.get("water_last_scheduled_watering_l")
+
+    @property
+    def extra_state_attributes(self):
+        zstate = self.coordinator.data["zones"].get(str(self._zid), {})
+        return {"kiedy": zstate.get("last_scheduled_watering_at")}
 
 
 class ZoneWaterMonthSensor(CoordinatorEntity, SensorEntity):

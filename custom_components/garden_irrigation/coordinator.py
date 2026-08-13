@@ -311,6 +311,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                     "growth_stage_selected_keys": None, "growth_stage_started": None,
                     "growth_stage_stage_until": None, "growth_stage_cycle_until": None,
                     "growth_stage_next_due": None, "growth_stage_last_watered": None,
+                    "current_run_source": None,
+                    "water_last_scheduled_watering_l": None, "last_scheduled_watering_at": None,
                 }
                 for z in self.zones
             },
@@ -710,6 +712,9 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             zstate.setdefault("growth_stage_cycle_until", None)
             zstate.setdefault("growth_stage_next_due", None)
             zstate.setdefault("growth_stage_last_watered", None)
+            zstate.setdefault("current_run_source", None)
+            zstate.setdefault("water_last_scheduled_watering_l", None)
+            zstate.setdefault("last_scheduled_watering_at", None)
         self._data.setdefault("flow_start_time", {})
         self._data.setdefault("et0_yesterday_inputs", None)
         self._data.setdefault("rain_measured_today_mm", 0.0)
@@ -1624,6 +1629,16 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 zstate["water_year_l"] = round(zstate.get("water_year_l", 0.0) + liters_delivered, 1)
                 zstate["water_last_watering_l"] = round(liters_delivered, 1)
                 zstate["last_watering_at"] = dt_util.now().isoformat()
+                if zstate.get("current_run_source") == "scheduled":
+                    # osobna migawka TYLKO dla podlewań z harmonogramu integracji
+                    # (zatwierdzenie/approve_all, sekwencja przed wschodem, stadia
+                    # wzrostu) - w odróżnieniu od "ostatniego podlewania" wyżej,
+                    # które aktualizuje KAŻDE uruchomienie, także ręczny test
+                    # usługą run_zone - dzięki temu krótkie testy nie zacierają
+                    # informacji, kiedy strefa faktycznie ostatnio podlewała
+                    # zgodnie z harmonogramem i ile wtedy zużyła wody
+                    zstate["water_last_scheduled_watering_l"] = round(liters_delivered, 1)
+                    zstate["last_scheduled_watering_at"] = dt_util.now().isoformat()
                 self._data["water_today_total_l"] = round(
                     self._data.get("water_today_total_l", 0.0) + liters_delivered, 1
                 )
@@ -1634,6 +1649,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                     self._data.get("water_year_total_l", 0.0) + liters_delivered, 1
                 )
                 zstate["last_watered"] = dt_util.now().date().isoformat()
+
+            # niezależnie od tego, czy cokolwiek zmierzono - koniec sesji,
+            # więc nie zostawiaj informacji o źródle na potrzeby KOLEJNEGO,
+            # niepowiązanego przełączenia zaworu (np. ręcznego w HA)
+            zstate["current_run_source"] = None
 
             self.hass.async_create_task(self._async_persist())
             self.async_set_updated_data(self._data)
@@ -2023,7 +2043,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 yield
 
     async def _async_run_zone_serialized(
-        self, zid: int, minutes: int, use_volume_target: bool = False
+        self, zid: int, minutes: int, use_volume_target: bool = False, source: str = "manual"
     ) -> bool:
         """Uruchamia jedną strefę przez wspólną bramkę (_async_zone_run_gate).
         Używane przez ścieżki, które NIE mają własnej, gotowej kolejki
@@ -2032,7 +2052,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         zarządza przerwą tranzycyjną między swoimi krokami."""
         async with self._async_zone_run_gate():
             completed = await self._async_run_zone_monitored(
-                zid, minutes, use_volume_target=use_volume_target
+                zid, minutes, use_volume_target=use_volume_target, source=source
             )
             if not self._data.get("allow_simultaneous_watering", False):
                 transition_delay_sec = int(
@@ -2094,7 +2114,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 return
 
         zstate["status"] = ZONE_STATUS_APPROVED
-        await self.async_run_zone(zid, zstate["pending_min"])
+        await self.async_run_zone(zid, zstate["pending_min"], source="scheduled")
 
     async def async_approve_all(self) -> None:
         if self._is_paused():
@@ -2114,7 +2134,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         await self._async_persist()
         self.async_set_updated_data(self._data)
 
-    async def async_run_zone(self, zid: int, minutes: int) -> None:
+    async def async_run_zone(self, zid: int, minutes: int, source: str = "manual") -> None:
         zone = self.zones.get(zid)
         if not zone:
             _LOGGER.warning("Nieznana strefa %s", zid)
@@ -2124,9 +2144,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         # ręczne wymuszenie (usługa run_zone) - respektuj DOKŁADNIE podaną
         # liczbę minut, bez sterowania objętościowego (zostawiony przez
         # użytkownika 'pending_mm' może być nieaktualny/z innej strefy stanu,
-        # bo ta usługa celowo pomija cały mechanizm wyliczania celu)
+        # bo ta usługa celowo pomija cały mechanizm wyliczania celu). Domyślnie
+        # source='manual' (usługa run_zone = ręczny/testowy start) -
+        # async_approve_zone jawnie nadpisuje na 'scheduled'.
         self.hass.async_create_task(
-            self._async_run_zone_serialized(zid, minutes, use_volume_target=False)
+            self._async_run_zone_serialized(zid, minutes, use_volume_target=False, source=source)
         )
         self.async_set_updated_data(self._data)
 
@@ -2302,7 +2324,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         self.async_set_updated_data(self._data)
         for zid, runtime_min in due:
             self.hass.async_create_task(
-                self._async_run_zone_serialized(zid, runtime_min, use_volume_target=False)
+                self._async_run_zone_serialized(zid, runtime_min, use_volume_target=False, source="scheduled")
             )
 
     # ------------------------------------------------ sekwencja przed wschodem
@@ -2450,7 +2472,9 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             elapsed += 1
         return False
 
-    async def _async_run_zone_monitored(self, zid: int, minutes: int, use_volume_target: bool = True) -> bool:
+    async def _async_run_zone_monitored(
+        self, zid: int, minutes: int, use_volume_target: bool = True, source: str = "manual"
+    ) -> bool:
         """Otwiera zawor i pilnuje go az do zakonczenia, sprawdzajac co
         `rain_pause_check_interval_min` minut zarowno deszcz, jak i (jesli
         strefa ma przeplywomierz) faktycznie dostarczona objetosc wody:
@@ -2491,6 +2515,10 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         max_wait_min = int(self.cfg.get(CONF_RAIN_PAUSE_MAX_WAIT_MIN, DEFAULT_RAIN_PAUSE_MAX_WAIT_MIN))
 
         zstate0 = self._data["zones"].setdefault(str(zid), {})
+        # zapamiętane na czas całej sesji - _on_switch_change (zdarzenie
+        # zamknięcia zaworu) czyta to, żeby wiedzieć, czy zaktualizować
+        # osobne statystyki "ostatnie podlewanie Z HARMONOGRAMU"
+        zstate0["current_run_source"] = source
         target_mm = zstate0.get("pending_mm", 0.0)
         target_liters = target_mm * zone["area_m2"] if zone.get("area_m2") else None
         use_volume_control = (
@@ -2795,7 +2823,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             if zstate and zstate.get("status") == ZONE_STATUS_IDLE and zstate.get("skip_reason"):
                 continue
             async with self._async_zone_run_gate():
-                completed = await self._async_run_zone_monitored(zid, minutes)
+                completed = await self._async_run_zone_monitored(zid, minutes, source="scheduled")
             if not completed:
                 # niepotwierdzone zamknięcie zaworu (JEDYNY powód False - deszcz
                 # już nigdy nie anuluje reszty kolejki, patrz _async_run_zone_monitored)
