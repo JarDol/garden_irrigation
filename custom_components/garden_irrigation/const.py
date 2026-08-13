@@ -142,28 +142,153 @@ SOIL_TYPES = {
 }
 DEFAULT_SOIL = "glina"
 
+# --- stadia wzrostu (dosiewka / nowe nasadzenie): każda roślina definiuje
+#     WŁASNY harmonogram dwóch stadiów pośrednich, zanim strefa wróci do
+#     standardowego (opartego na deficycie SMD) podlewania:
+#     - "kielkowanie" - okres tuż po wysianiu/posadzeniu, podlewanie najczęstsze
+#     - "mlode" - młoda roślina/trawnik, podlewanie rzadsze niż kiełkowanie,
+#       ale nadal częstsze niż docelowe
+#     duration_days - ile dni trwa dane stadium
+#     frequency_per_day - ile razy dziennie podlewać w tym stadium
+#     runtime_min - czas pojedynczego (płytkiego) podlewania w tym stadium
+GROWTH_STAGE_GERMINATION = "kielkowanie"
+GROWTH_STAGE_YOUNG = "mlode"
+GROWTH_STAGES_ORDER = [GROWTH_STAGE_GERMINATION, GROWTH_STAGE_YOUNG]
+GROWTH_STAGE_LABELS = {
+    GROWTH_STAGE_GERMINATION: "Kiełkowanie",
+    GROWTH_STAGE_YOUNG: "Młode rośliny",
+}
+
 # --- rośliny: kc (współczynnik roślinny), głębokość korzeni (mm), MAD (frakcja
 #     dostępnej wody, jaką można zużyć zanim uruchomimy podlewanie - niższa
 #     wartość = roślina bardziej wrażliwa na przesuszenie, podlewana częściej) ---
 PLANTS = {
-    "trawnik": {"label": "Trawnik ozdobny", "kc": 0.80, "root_depth_mm": 150, "mad": 0.40},
-    "warzywa_liste": {"label": "Warzywa liściaste (sałata, kapusta...)", "kc": 1.00, "root_depth_mm": 300, "mad": 0.50},
-    "warzywa_korzeniowe": {"label": "Warzywa korzeniowe (marchew, ziemniaki...)", "kc": 0.90, "root_depth_mm": 350, "mad": 0.50},
-    "truskawki": {"label": "Truskawki / poziomki", "kc": 0.85, "root_depth_mm": 200, "mad": 0.40},
-    "roze": {"label": "Róże", "kc": 0.60, "root_depth_mm": 400, "mad": 0.50},
-    "byliny_ogolne": {"label": "Byliny ogrodowe (ogólnie)", "kc": 0.70, "root_depth_mm": 300, "mad": 0.45},
-    "hortensje": {"label": "Hortensje", "kc": 0.80, "root_depth_mm": 300, "mad": 0.35},
-    "funkie": {"label": "Funkie / hosty", "kc": 0.70, "root_depth_mm": 250, "mad": 0.40},
-    "trawy_ozdobne": {"label": "Wysokie trawy ozdobne", "kc": 0.55, "root_depth_mm": 400, "mad": 0.55},
-    "krzewy_liesciaste": {"label": "Krzewy liściaste ozdobne (ogólnie)", "kc": 0.55, "root_depth_mm": 400, "mad": 0.50},
-    "zywoplot_liesciasty": {"label": "Żywopłot liściasty formowany", "kc": 0.60, "root_depth_mm": 400, "mad": 0.45},
-    "zywoplot_iglasty": {"label": "Żywopłot / krzewy iglaste (tuje, cyprysiki)", "kc": 0.45, "root_depth_mm": 450, "mad": 0.55},
-    "iglaki_duze": {"label": "Duże iglaki (jodły, sosny, świerki)", "kc": 0.40, "root_depth_mm": 600, "mad": 0.60},
-    "cisy": {"label": "Cisy", "kc": 0.45, "root_depth_mm": 450, "mad": 0.55},
-    "plozence_iglaste": {"label": "Płożące iglaki (jałowce płożące itp.)", "kc": 0.40, "root_depth_mm": 300, "mad": 0.55},
-    "drzewa_liesciaste": {"label": "Drzewa liściaste dojrzałe", "kc": 0.50, "root_depth_mm": 700, "mad": 0.60},
-    "drzewa_owocowe": {"label": "Drzewa owocowe", "kc": 0.65, "root_depth_mm": 600, "mad": 0.50},
-    "donice": {"label": "Rośliny w donicach / pojemnikach (ogólnie)", "kc": 0.90, "root_depth_mm": 200, "mad": 0.30},
+    "trawnik": {
+        "label": "Trawnik ozdobny", "kc": 0.80, "root_depth_mm": 150, "mad": 0.40,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 2, "runtime_min": 5},
+            GROWTH_STAGE_YOUNG: {"duration_days": 21, "frequency_per_day": 1, "runtime_min": 8},
+        },
+    },
+    "warzywa_liste": {
+        "label": "Warzywa liściaste (sałata, kapusta...)", "kc": 1.00, "root_depth_mm": 300, "mad": 0.50,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 10, "frequency_per_day": 2, "runtime_min": 5},
+            GROWTH_STAGE_YOUNG: {"duration_days": 21, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "warzywa_korzeniowe": {
+        "label": "Warzywa korzeniowe (marchew, ziemniaki...)", "kc": 0.90, "root_depth_mm": 350, "mad": 0.50,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 2, "runtime_min": 5},
+            GROWTH_STAGE_YOUNG: {"duration_days": 21, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "truskawki": {
+        "label": "Truskawki / poziomki", "kc": 0.85, "root_depth_mm": 200, "mad": 0.40,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 10, "frequency_per_day": 2, "runtime_min": 5},
+            GROWTH_STAGE_YOUNG: {"duration_days": 21, "frequency_per_day": 1, "runtime_min": 8},
+        },
+    },
+    "roze": {
+        "label": "Róże", "kc": 0.60, "root_depth_mm": 400, "mad": 0.50,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 8},
+            GROWTH_STAGE_YOUNG: {"duration_days": 30, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "byliny_ogolne": {
+        "label": "Byliny ogrodowe (ogólnie)", "kc": 0.70, "root_depth_mm": 300, "mad": 0.45,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 10, "frequency_per_day": 1, "runtime_min": 6},
+            GROWTH_STAGE_YOUNG: {"duration_days": 21, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "hortensje": {
+        "label": "Hortensje", "kc": 0.80, "root_depth_mm": 300, "mad": 0.35,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 8},
+            GROWTH_STAGE_YOUNG: {"duration_days": 30, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "funkie": {
+        "label": "Funkie / hosty", "kc": 0.70, "root_depth_mm": 250, "mad": 0.40,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 10, "frequency_per_day": 1, "runtime_min": 6},
+            GROWTH_STAGE_YOUNG: {"duration_days": 21, "frequency_per_day": 1, "runtime_min": 8},
+        },
+    },
+    "trawy_ozdobne": {
+        "label": "Wysokie trawy ozdobne", "kc": 0.55, "root_depth_mm": 400, "mad": 0.55,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 6},
+            GROWTH_STAGE_YOUNG: {"duration_days": 21, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "krzewy_liesciaste": {
+        "label": "Krzewy liściaste ozdobne (ogólnie)", "kc": 0.55, "root_depth_mm": 400, "mad": 0.50,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 8},
+            GROWTH_STAGE_YOUNG: {"duration_days": 30, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "zywoplot_liesciasty": {
+        "label": "Żywopłot liściasty formowany", "kc": 0.60, "root_depth_mm": 400, "mad": 0.45,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 8},
+            GROWTH_STAGE_YOUNG: {"duration_days": 30, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "zywoplot_iglasty": {
+        "label": "Żywopłot / krzewy iglaste (tuje, cyprysiki)", "kc": 0.45, "root_depth_mm": 450, "mad": 0.55,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 8},
+            GROWTH_STAGE_YOUNG: {"duration_days": 35, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "iglaki_duze": {
+        "label": "Duże iglaki (jodły, sosny, świerki)", "kc": 0.40, "root_depth_mm": 600, "mad": 0.60,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 10},
+            GROWTH_STAGE_YOUNG: {"duration_days": 45, "frequency_per_day": 1, "runtime_min": 15},
+        },
+    },
+    "cisy": {
+        "label": "Cisy", "kc": 0.45, "root_depth_mm": 450, "mad": 0.55,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 8},
+            GROWTH_STAGE_YOUNG: {"duration_days": 35, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "plozence_iglaste": {
+        "label": "Płożące iglaki (jałowce płożące itp.)", "kc": 0.40, "root_depth_mm": 300, "mad": 0.55,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 8},
+            GROWTH_STAGE_YOUNG: {"duration_days": 30, "frequency_per_day": 1, "runtime_min": 10},
+        },
+    },
+    "drzewa_liesciaste": {
+        "label": "Drzewa liściaste dojrzałe", "kc": 0.50, "root_depth_mm": 700, "mad": 0.60,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 10},
+            GROWTH_STAGE_YOUNG: {"duration_days": 45, "frequency_per_day": 1, "runtime_min": 15},
+        },
+    },
+    "drzewa_owocowe": {
+        "label": "Drzewa owocowe", "kc": 0.65, "root_depth_mm": 600, "mad": 0.50,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 10},
+            GROWTH_STAGE_YOUNG: {"duration_days": 45, "frequency_per_day": 1, "runtime_min": 15},
+        },
+    },
+    "donice": {
+        "label": "Rośliny w donicach / pojemnikach (ogólnie)", "kc": 0.90, "root_depth_mm": 200, "mad": 0.30,
+        "growth_stages": {
+            GROWTH_STAGE_GERMINATION: {"duration_days": 7, "frequency_per_day": 2, "runtime_min": 3},
+            GROWTH_STAGE_YOUNG: {"duration_days": 14, "frequency_per_day": 1, "runtime_min": 5},
+        },
+    },
 }
 DEFAULT_PLANT = "trawnik"
 
@@ -183,6 +308,9 @@ SERVICE_APPROVE_ALL = "approve_all"
 SERVICE_SKIP_ZONE = "skip_zone"
 SERVICE_RUN_ZONE = "run_zone"
 SERVICE_RUN_SEQUENCE_BEFORE_SUNRISE = "run_sequence_before_sunrise"
+SERVICE_START_NEW_PLANTING = "start_new_planting"
+SERVICE_CANCEL_NEW_PLANTING = "cancel_new_planting"
 
 ATTR_ZONE_ID = "zone_id"
 ATTR_MINUTES = "minutes"
+ATTR_PLANT_KEYS = "plant_keys"

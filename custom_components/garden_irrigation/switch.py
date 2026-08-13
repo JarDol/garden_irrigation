@@ -1,4 +1,5 @@
-"""Switch: globalny wyłącznik/pauza całego podlewania (tryb urlopowy itp.)."""
+"""Switch: globalna pauza podlewania, korekta MAD i zezwolenie na jednoczesne
+podlewanie wielu stref."""
 from __future__ import annotations
 
 from homeassistant.components.switch import SwitchEntity
@@ -16,6 +17,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     async_add_entities([
         IrrigationPausedSwitch(coordinator, entry),
         DynamicMadEnabledSwitch(coordinator, entry),
+        AllowSimultaneousWateringSwitch(coordinator, entry),
     ])
 
 
@@ -80,3 +82,32 @@ class DynamicMadEnabledSwitch(CoordinatorEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         await self.coordinator.async_set_dynamic_mad_enabled(False)
+
+
+class AllowSimultaneousWateringSwitch(CoordinatorEntity, SwitchEntity):
+    """Wyłączony (domyślnie) = każde otwarcie zaworu - ręczne zatwierdzenie,
+    usługa run_zone, sekwencja przed wschodem, stadia wzrostu (dosiewka/nowe
+    nasadzenie) - czeka w kolejce (FIFO), aż żadna inna strefa nie jest
+    aktualnie podlewana; nigdy dwa zawory jednocześnie. Włączenie pozwala
+    strefom startować równolegle, niezależnie od źródła wyzwolenia - przydatne
+    tylko, gdy instalacja/ciśnienie wody faktycznie to udźwignie."""
+
+    _attr_icon = "mdi:valve-open"
+
+    def __init__(self, coordinator: GardenIrrigationCoordinator, entry: ConfigEntry) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{entry.entry_id}_allow_simultaneous_watering"
+        self._attr_name = "Zezwalaj na jednoczesne podlewanie stref"
+        self._attr_suggested_object_id = "garden_irrigation_allow_simultaneous_watering"
+        self.entity_id = f"switch.{self._attr_suggested_object_id}"
+        self._attr_device_info = _device_info(entry)
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self.coordinator.data.get("allow_simultaneous_watering", False))
+
+    async def async_turn_on(self, **kwargs) -> None:
+        await self.coordinator.async_set_allow_simultaneous_watering(True)
+
+    async def async_turn_off(self, **kwargs) -> None:
+        await self.coordinator.async_set_allow_simultaneous_watering(False)

@@ -10,7 +10,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, ZONE_STATUS_PENDING
+from .const import DOMAIN, GROWTH_STAGE_LABELS, ZONE_STATUS_PENDING
 from .coordinator import GardenIrrigationCoordinator
 
 
@@ -27,6 +27,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     ]
     for zid, zone in coordinator.zones.items():
         entities.append(ZoneStatusSensor(coordinator, entry, zid, zone))
+        entities.append(ZoneGrowthStageSensor(coordinator, entry, zid, zone))
         entities.append(ZoneDeficitSensor(coordinator, entry, zid, zone))
         entities.append(ZoneSoilWaterSensor(coordinator, entry, zid, zone))
         entities.append(ZoneSoilWaterProjectedSensor(coordinator, entry, zid, zone))
@@ -135,6 +136,44 @@ class ZoneStatusSensor(CoordinatorEntity, SensorEntity):
             "ostatnie_podlewanie_faktyczny_czas_min": zstate.get("actual_runtime_min"),
             "ostatnie_podlewanie_wydluzenie_min": zstate.get("runtime_extended_min"),
             "opad_podczas_biezacej_pauzy_mm": zstate.get("rain_during_current_pause_mm"),
+        }
+
+
+class ZoneGrowthStageSensor(CoordinatorEntity, SensorEntity):
+    """Stan dosiewki/nowego nasadzenia - stadium wzrostu, roślina wiodąca i
+    harmonogram (koniec bieżącego stadium, powrót do standardu, kolejne
+    wymuszone podlewanie), sterowane usługami start_new_planting /
+    cancel_new_planting."""
+
+    _attr_icon = "mdi:sprout"
+
+    def __init__(self, coordinator: GardenIrrigationCoordinator, entry: ConfigEntry, zid: int, zone: dict) -> None:
+        super().__init__(coordinator)
+        self._zid = zid
+        self._attr_unique_id = f"{entry.entry_id}_zone{zid}_growth_stage"
+        self._attr_name = f"{zone['name']} - stadium wzrostu"
+        self._attr_suggested_object_id = f"garden_irrigation_{zone['slug']}_growth_stage"
+        self.entity_id = f"sensor.{self._attr_suggested_object_id}"
+        self._attr_device_info = _device_info(entry)
+
+    @property
+    def native_value(self):
+        zstate = self.coordinator.data["zones"].get(str(self._zid), {})
+        stage = zstate.get("growth_stage")
+        return GROWTH_STAGE_LABELS.get(stage, "standard") if stage else "standard"
+
+    @property
+    def extra_state_attributes(self):
+        zstate = self.coordinator.data["zones"].get(str(self._zid), {})
+        return {
+            "aktywne": bool(zstate.get("growth_stage")),
+            "roslina_wiodaca": zstate.get("growth_stage_plant_label"),
+            "wybrane_rosliny": zstate.get("growth_stage_selected_keys"),
+            "rozpoczete": zstate.get("growth_stage_started"),
+            "koniec_biezacego_stadium": zstate.get("growth_stage_stage_until"),
+            "powrot_do_standardu": zstate.get("growth_stage_cycle_until"),
+            "kolejne_podlewanie": zstate.get("growth_stage_next_due"),
+            "ostatnie_podlewanie": zstate.get("growth_stage_last_watered"),
         }
 
 

@@ -9,13 +9,16 @@ from homeassistant.helpers import config_validation as cv
 
 from .const import (
     ATTR_MINUTES,
+    ATTR_PLANT_KEYS,
     ATTR_ZONE_ID,
     DOMAIN,
     SERVICE_APPROVE_ALL,
     SERVICE_APPROVE_ZONE,
+    SERVICE_CANCEL_NEW_PLANTING,
     SERVICE_RUN_SEQUENCE_BEFORE_SUNRISE,
     SERVICE_RUN_ZONE,
     SERVICE_SKIP_ZONE,
+    SERVICE_START_NEW_PLANTING,
 )
 from .coordinator import GardenIrrigationCoordinator
 
@@ -49,6 +52,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     async def _handle_run_sequence(call: ServiceCall) -> None:
         await coordinator.async_run_sequence_before_sunrise()
 
+    async def _handle_start_new_planting(call: ServiceCall) -> None:
+        await coordinator.async_start_new_planting(
+            int(call.data[ATTR_ZONE_ID]), list(call.data[ATTR_PLANT_KEYS])
+        )
+
+    async def _handle_cancel_new_planting(call: ServiceCall) -> None:
+        await coordinator.async_cancel_new_planting(int(call.data[ATTR_ZONE_ID]))
+
     hass.services.async_register(
         DOMAIN, SERVICE_APPROVE_ZONE, _handle_approve_zone,
         schema=vol.Schema({vol.Required(ATTR_ZONE_ID): cv.positive_int}),
@@ -65,6 +76,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ),
     )
     hass.services.async_register(DOMAIN, SERVICE_RUN_SEQUENCE_BEFORE_SUNRISE, _handle_run_sequence)
+    hass.services.async_register(
+        DOMAIN, SERVICE_START_NEW_PLANTING, _handle_start_new_planting,
+        schema=vol.Schema(
+            {
+                vol.Required(ATTR_ZONE_ID): cv.positive_int,
+                vol.Required(ATTR_PLANT_KEYS): vol.All(cv.ensure_list, [cv.string]),
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_CANCEL_NEW_PLANTING, _handle_cancel_new_planting,
+        schema=vol.Schema({vol.Required(ATTR_ZONE_ID): cv.positive_int}),
+    )
 
     return True
 

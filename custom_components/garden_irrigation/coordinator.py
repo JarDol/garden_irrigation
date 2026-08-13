@@ -3,6 +3,7 @@ gleby dla każdej strefy i wystawia rekomendacje podlewania do zatwierdzenia."""
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import math
 from datetime import date, datetime, timedelta
@@ -73,6 +74,9 @@ from .const import (
     DEFAULT_RAIN_PRIORITY_OVER_HEAT,
     DEFAULT_DYNAMIC_MAD_ENABLED,
     DEFAULT_PLANT,
+    GROWTH_STAGE_GERMINATION,
+    GROWTH_STAGE_LABELS,
+    GROWTH_STAGE_YOUNG,
     DEFAULT_RAIN_PAUSE_CHECK_INTERVAL_MIN,
     DEFAULT_RAIN_PAUSE_MAX_WAIT_MIN,
     DEFAULT_RAIN_STOP_CONFIRMATION_MIN,
@@ -303,6 +307,10 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                     "pending_mm_projected": 0.0, "pending_min_projected": 0,
                     "mad_adjusted": self.zones[z]["mad"], "etc_yesterday_mm": None,
                     "learned_rate_mmh": None, "learned_rate_samples": 0, "last_measured_rate_mmh": None,
+                    "growth_stage": None, "growth_stage_plant_key": None, "growth_stage_plant_label": None,
+                    "growth_stage_selected_keys": None, "growth_stage_started": None,
+                    "growth_stage_stage_until": None, "growth_stage_cycle_until": None,
+                    "growth_stage_next_due": None, "growth_stage_last_watered": None,
                 }
                 for z in self.zones
             },
@@ -315,6 +323,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "weather_forecast_cache_at": None,
             "rain_forecast_samples": [],  # [{"at": iso, "mm": float}] - historia świeżych odczytów prognozy, do wyliczania maksimum z ostatniego okna (łapanie krótkotrwałych skoków)
             "irrigation_paused": False,
+            "allow_simultaneous_watering": False,
             "dynamic_mad_enabled": self.cfg.get(CONF_DYNAMIC_MAD_ENABLED, DEFAULT_DYNAMIC_MAD_ENABLED),
             "water_stats_month": dt_util.now().strftime("%Y-%m"),
             "water_stats_year": dt_util.now().strftime("%Y"),
@@ -324,6 +333,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         }
         self._unsub_listeners: list[Any] = []
         self._auto_trigger_unsub = None
+        # globalna blokada "jedna strefa naraz" - używana przez WSZYSTKIE ścieżki
+        # otwierające zawór (ręczne zatwierdzenie, usługa run_zone, sekwencja
+        # przed wschodem, stadia wzrostu), gdy przełącznik "zezwalaj na
+        # jednoczesne podlewanie" jest wyłączony (patrz _async_zone_run_gate)
+        self._zone_run_lock = asyncio.Lock()
 
     # ---------------------------------------------------------------- setup
 
@@ -687,12 +701,22 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             zstate.setdefault("learned_rate_mmh", None)
             zstate.setdefault("learned_rate_samples", 0)
             zstate.setdefault("last_measured_rate_mmh", None)
+            zstate.setdefault("growth_stage", None)
+            zstate.setdefault("growth_stage_plant_key", None)
+            zstate.setdefault("growth_stage_plant_label", None)
+            zstate.setdefault("growth_stage_selected_keys", None)
+            zstate.setdefault("growth_stage_started", None)
+            zstate.setdefault("growth_stage_stage_until", None)
+            zstate.setdefault("growth_stage_cycle_until", None)
+            zstate.setdefault("growth_stage_next_due", None)
+            zstate.setdefault("growth_stage_last_watered", None)
         self._data.setdefault("flow_start_time", {})
         self._data.setdefault("et0_yesterday_inputs", None)
         self._data.setdefault("rain_measured_today_mm", 0.0)
         self._data.setdefault(
             "dynamic_mad_enabled", self.cfg.get(CONF_DYNAMIC_MAD_ENABLED, DEFAULT_DYNAMIC_MAD_ENABLED)
         )
+        self._data.setdefault("allow_simultaneous_watering", False)
 
         # sprawdź, czy skonfigurowane encje stref faktycznie istnieją - jeśli
         # nie, zgłoś to jako Repairs zamiast po cichu milczeć w logach.
@@ -899,6 +923,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         self._async_accrue_projected_etc()
         await self._async_maybe_refresh_projected_gates()
         self._auto_trigger_safety_net()
+        await self._async_process_growth_stages()
 
         await self._async_persist()
         return self._data
@@ -1705,6 +1730,16 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         zstate = self._data["zones"].get(str(zid))
         if not zone or not zstate:
             return
+        if zstate.get("growth_stage"):
+            # w trakcie kiełkowania/młodych roślin podlewaniem strefy steruje
+            # WYŁĄCZNIE harmonogram etapu wzrostu (_async_process_growth_stages) -
+            # zwykły mechanizm deficytu SMD jest zawieszony, żeby nie dublować podlewań
+            zstate["pending_mm"] = 0.0
+            zstate["pending_min"] = 0
+            zstate["status"] = ZONE_STATUS_IDLE
+            stage_label = GROWTH_STAGE_LABELS.get(zstate["growth_stage"], zstate["growth_stage"])
+            zstate["skip_reason"] = f"strefa w stadium wzrostu '{stage_label}' - podlewanie wg harmonogramu etapu"
+            return
         available_water_mm = zone["awc_mm_per_m"] * (zone["root_depth_mm"] / 1000)
         mad_used = zstate.get("mad_adjusted", zone["mad"])
         threshold = available_water_mm * mad_used
@@ -1786,6 +1821,10 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 continue
             zstate = self._data["zones"].get(str(zid))
             if not zstate:
+                continue
+            if zstate.get("growth_stage"):
+                # strefa w stadium wzrostu ma własny, częstszy harmonogram -
+                # wymuszenie przed upałem by go tylko zaburzyło
                 continue
             if zstate.get("status") == ZONE_STATUS_PENDING:
                 # i tak wejdzie do kolejki normalnie - upał nie musi nic wymuszać
@@ -1958,6 +1997,51 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "Dynamiczna korekta MAD (FAO-56) %s", "włączona" if enabled else "wyłączona"
         )
 
+    async def async_set_allow_simultaneous_watering(self, enabled: bool) -> None:
+        self._data["allow_simultaneous_watering"] = enabled
+        await self._async_persist()
+        self.async_set_updated_data(self._data)
+        _LOGGER.info(
+            "Jednoczesne podlewanie wielu stref %s",
+            "dozwolone" if enabled else "wyłączone - strefy kolejkowane",
+        )
+
+    @contextlib.asynccontextmanager
+    async def _async_zone_run_gate(self):
+        """Wspólna blokada 'jedna strefa naraz', przez którą przechodzi KAŻDE
+        otwarcie zaworu - niezależnie od tego, czy wyzwolone ręcznie
+        (zatwierdzenie/usługa run_zone), przez sekwencję przed wschodem, czy
+        przez harmonogram stadium wzrostu (dosiewka/nowe nasadzenie). Gdy
+        przełącznik 'zezwalaj na jednoczesne podlewanie' jest WŁĄCZONY, nic nie
+        blokuje (zachowanie jak dawniej - równoległe otwieranie zaworów).
+        W przeciwnym razie (domyślnie) używa asyncio.Lock - FIFO, więc
+        oczekujące strefy startują w kolejności zgłoszenia, nigdy jednocześnie."""
+        if self._data.get("allow_simultaneous_watering", False):
+            yield
+        else:
+            async with self._zone_run_lock:
+                yield
+
+    async def _async_run_zone_serialized(
+        self, zid: int, minutes: int, use_volume_target: bool = False
+    ) -> bool:
+        """Uruchamia jedną strefę przez wspólną bramkę (_async_zone_run_gate).
+        Używane przez ścieżki, które NIE mają własnej, gotowej kolejki
+        (zatwierdzenie ręczne/run_zone/stadia wzrostu) - w przeciwieństwie do
+        sekwencji przed wschodem, która ma własny, jawny plan startów i sama
+        zarządza przerwą tranzycyjną między swoimi krokami."""
+        async with self._async_zone_run_gate():
+            completed = await self._async_run_zone_monitored(
+                zid, minutes, use_volume_target=use_volume_target
+            )
+            if not self._data.get("allow_simultaneous_watering", False):
+                transition_delay_sec = int(
+                    self.cfg.get(CONF_ZONE_TRANSITION_DELAY_SEC, DEFAULT_ZONE_TRANSITION_DELAY_SEC)
+                )
+                if transition_delay_sec > 0:
+                    await asyncio.sleep(transition_delay_sec)
+            return completed
+
     # --------------------------------------------------------------- akcje
 
     async def async_approve_zone(self, zid: int) -> None:
@@ -2042,9 +2126,184 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         # użytkownika 'pending_mm' może być nieaktualny/z innej strefy stanu,
         # bo ta usługa celowo pomija cały mechanizm wyliczania celu)
         self.hass.async_create_task(
-            self._async_run_zone_monitored(zid, minutes, use_volume_target=False)
+            self._async_run_zone_serialized(zid, minutes, use_volume_target=False)
         )
         self.async_set_updated_data(self._data)
+
+    # -------------------------------------------- dosiewka / nowe nasadzenie
+
+    @staticmethod
+    def _dominant_growth_plant_key(plant_keys: list[str]) -> str | None:
+        """Spośród wybranych roślin (dosiewka/nowe nasadzenie) wybiera tę
+        'najsłabszą' - czyli najbardziej wrażliwą na przesuszenie (najniższy
+        MAD, ten sam wskaźnik wrażliwości, który integracja już wykorzystuje
+        przy mieszanych nasadzeniach na jednej strefie - patrz _build_zone_config).
+        To JEJ harmonogram stadiów wzrostu (czasy trwania i częstotliwości
+        podlewania) rządzi całym cyklem strefy, od kiełkowania aż do powrotu
+        do standardowego podlewania."""
+        candidates = [k for k in plant_keys if k in PLANTS and "growth_stages" in PLANTS[k]]
+        if not candidates:
+            return None
+        return min(candidates, key=lambda k: PLANTS[k]["mad"])
+
+    async def async_start_new_planting(self, zid: int, plant_keys: list[str]) -> None:
+        """Rozpoczyna dosiewkę/nowe nasadzenie dla strefy: spośród podanych
+        roślin (muszą być już przypisane do tej strefy) wybiera dominującą i
+        ustawia strefę na stadium 'kiełkowanie', z którego harmonogram sam
+        przejdzie do 'młode' a potem wróci do standardowego podlewania."""
+        zone = self.zones.get(zid)
+        zstate = self._data["zones"].get(str(zid))
+        if not zone or zstate is None:
+            _LOGGER.warning("Nieznana strefa %s", zid)
+            return
+        valid_keys = [k for k in (plant_keys or []) if k in zone.get("plant_keys", [])]
+        dominant_key = self._dominant_growth_plant_key(valid_keys)
+        if not dominant_key:
+            _LOGGER.warning(
+                "Strefa %s: żadna z podanych roślin (%s) nie jest przypisana do tej strefy "
+                "lub nie ma zdefiniowanego harmonogramu stadiów wzrostu - dosiewka nie rozpoczęta",
+                zid, plant_keys,
+            )
+            return
+
+        stages = PLANTS[dominant_key]["growth_stages"]
+        now = dt_util.now()
+        germination_until = now + timedelta(days=stages[GROWTH_STAGE_GERMINATION]["duration_days"])
+        cycle_until = germination_until + timedelta(days=stages[GROWTH_STAGE_YOUNG]["duration_days"])
+
+        zstate["growth_stage"] = GROWTH_STAGE_GERMINATION
+        zstate["growth_stage_plant_key"] = dominant_key
+        zstate["growth_stage_plant_label"] = PLANTS[dominant_key]["label"]
+        zstate["growth_stage_selected_keys"] = valid_keys
+        zstate["growth_stage_started"] = now.isoformat()
+        zstate["growth_stage_stage_until"] = germination_until.isoformat()
+        zstate["growth_stage_cycle_until"] = cycle_until.isoformat()
+        zstate["growth_stage_next_due"] = now.isoformat()
+        zstate["growth_stage_last_watered"] = None
+        zstate["pending_mm"] = 0.0
+        zstate["pending_min"] = 0
+        zstate["status"] = ZONE_STATUS_IDLE
+        stage_label = GROWTH_STAGE_LABELS[GROWTH_STAGE_GERMINATION]
+        zstate["skip_reason"] = f"strefa w stadium wzrostu '{stage_label}' - podlewanie wg harmonogramu etapu"
+
+        _LOGGER.info(
+            "Strefa %s: rozpoczęto dosiewkę/nowe nasadzenie - roślina wiodąca '%s', "
+            "kiełkowanie do %s, powrót do standardu %s",
+            zid, PLANTS[dominant_key]["label"], germination_until.isoformat(), cycle_until.isoformat(),
+        )
+        await self._async_persist()
+        self.async_set_updated_data(self._data)
+
+    async def async_cancel_new_planting(self, zid: int) -> None:
+        """Ręcznie kończy stadium wzrostu przed czasem i wraca do standardowego
+        podlewania opartego na deficycie SMD (np. pomyłka przy wyborze roślin)."""
+        zstate = self._data["zones"].get(str(zid))
+        if zstate is None:
+            _LOGGER.warning("Nieznana strefa %s", zid)
+            return
+        if not zstate.get("growth_stage"):
+            return
+        self._end_growth_stage(zid, zstate)
+        await self._async_persist()
+        self.async_set_updated_data(self._data)
+
+    def _end_growth_stage(self, zid: int, zstate: dict) -> None:
+        _LOGGER.info(
+            "Strefa %s: koniec stadium wzrostu ('%s') - powrót do standardowego podlewania",
+            zid, zstate.get("growth_stage_plant_label"),
+        )
+        zstate["growth_stage"] = None
+        zstate["growth_stage_plant_key"] = None
+        zstate["growth_stage_plant_label"] = None
+        zstate["growth_stage_selected_keys"] = None
+        zstate["growth_stage_started"] = None
+        zstate["growth_stage_stage_until"] = None
+        zstate["growth_stage_cycle_until"] = None
+        zstate["growth_stage_next_due"] = None
+        self._compute_zone_status(zid)
+
+    async def _async_process_growth_stages(self) -> None:
+        """Wywoływane co cykl głównej aktualizacji (co ok. CONF_UPDATE_INTERVAL
+        minut). Dla każdej strefy w aktywnym stadium wzrostu: sprawdza, czy
+        czas przejść do kolejnego stadium (lub wrócić do standardu), i czy
+        minął odstęp do kolejnego, wymuszonego podlewania wg częstotliwości
+        zdefiniowanej dla bieżącego stadium rośliny wiodącej. Faktyczne
+        uruchomienie idzie przez _async_run_zone_serialized - tę samą wspólną
+        bramkę 'jedna strefa naraz', co zatwierdzenie ręczne i usługa run_zone -
+        więc dwie strefy w stadium wzrostu (albo strefa w stadium wzrostu i
+        strefa uruchomiona ręcznie w tym samym momencie) nigdy nie otworzą
+        zaworów jednocześnie, chyba że użytkownik włączył przełącznik
+        'zezwalaj na jednoczesne podlewanie'."""
+        now = dt_util.now()
+        due: list[tuple[int, int]] = []
+        for zid_str, zstate in list(self._data["zones"].items()):
+            stage = zstate.get("growth_stage")
+            if not stage:
+                continue
+            zid = int(zid_str)
+            zone = self.zones.get(zid)
+            plant_key = zstate.get("growth_stage_plant_key")
+            plant_cfg = PLANTS.get(plant_key)
+            if not zone or not plant_cfg or "growth_stages" not in plant_cfg:
+                self._end_growth_stage(zid, zstate)
+                continue
+
+            cycle_until = dt_util.parse_datetime(zstate.get("growth_stage_cycle_until") or "")
+            if cycle_until and now >= cycle_until:
+                self._end_growth_stage(zid, zstate)
+                continue
+
+            stage_until = dt_util.parse_datetime(zstate.get("growth_stage_stage_until") or "")
+            if stage == GROWTH_STAGE_GERMINATION and stage_until and now >= stage_until:
+                stage = GROWTH_STAGE_YOUNG
+                zstate["growth_stage"] = stage
+                # koniec stadium 'młode' pokrywa się z wcześniej wyliczonym
+                # końcem całego cyklu (kiełkowanie + młode)
+                zstate["growth_stage_stage_until"] = zstate.get("growth_stage_cycle_until")
+                _LOGGER.info(
+                    "Strefa %s: przejście do stadium 'Młode rośliny' (roślina wiodąca '%s')",
+                    zid, zstate.get("growth_stage_plant_label"),
+                )
+
+            stage_cfg = plant_cfg["growth_stages"].get(stage)
+            if not stage_cfg:
+                self._end_growth_stage(zid, zstate)
+                continue
+
+            next_due = dt_util.parse_datetime(zstate.get("growth_stage_next_due") or "")
+            if not next_due or now < next_due:
+                continue
+            if self._is_paused():
+                continue
+            frost_risk, _ = self._frost_risk()
+            if frost_risk:
+                continue
+            if zstate.get("status") == ZONE_STATUS_RUNNING:
+                continue
+
+            frequency = max(1, int(stage_cfg.get("frequency_per_day", 1)))
+            runtime_min = int(stage_cfg.get("runtime_min", 5))
+            _LOGGER.info(
+                "Strefa %s: podlewanie stadium '%s' (roślina wiodąca '%s') - %s min",
+                zid, GROWTH_STAGE_LABELS.get(stage, stage), zstate.get("growth_stage_plant_label"), runtime_min,
+            )
+            due.append((zid, runtime_min))
+            # next_due ustawiany OD RAZU (nie po faktycznym uruchomieniu) - to on
+            # jest jedynym zabezpieczeniem przed powtórnym zakolejkowaniem tej
+            # samej strefy w kolejnym cyklu, zanim ta jeszcze ruszy (np. czeka w
+            # bramce na inną strefę)
+            zstate["growth_stage_next_due"] = (now + timedelta(hours=24 / frequency)).isoformat()
+            zstate["growth_stage_last_watered"] = now.isoformat()
+
+        if not due:
+            return
+
+        await self._async_persist()
+        self.async_set_updated_data(self._data)
+        for zid, runtime_min in due:
+            self.hass.async_create_task(
+                self._async_run_zone_serialized(zid, runtime_min, use_volume_target=False)
+            )
 
     # ------------------------------------------------ sekwencja przed wschodem
 
@@ -2535,7 +2794,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             zstate = self._data["zones"].get(str(zid))
             if zstate and zstate.get("status") == ZONE_STATUS_IDLE and zstate.get("skip_reason"):
                 continue
-            completed = await self._async_run_zone_monitored(zid, minutes)
+            async with self._async_zone_run_gate():
+                completed = await self._async_run_zone_monitored(zid, minutes)
             if not completed:
                 # niepotwierdzone zamknięcie zaworu (JEDYNY powód False - deszcz
                 # już nigdy nie anuluje reszty kolejki, patrz _async_run_zone_monitored)

@@ -54,3 +54,80 @@ run_sequence_before_sunrise:
     zakończyła podlewanie mniej więcej o wschodzie słońca (na podstawie skonfigurowanej
     encji sun_next_rising). Jeśli łączny czas wszystkich stref nie zmieściłby się przed
     wschodem, sekwencja startuje natychmiast.
+
+start_new_planting:
+  name: Rozpocznij dosiewkę / nowe nasadzenie
+  description: >
+    Przełącza strefę na częstsze podlewanie dla świeżo wysianych/posadzonych roślin
+    (stadium "Kiełkowanie", potem automatycznie "Młode rośliny"), aż integracja
+    sama wróci do standardowego podlewania. Wybierz rośliny, które faktycznie
+    dosiewasz/nasadzasz - MUSZĄ być już dodane do listy roślin tej strefy w
+    konfiguracji integracji. Jeśli wybierzesz kilka, harmonogram (czas trwania
+    i częstotliwość podlewania) wyznacza najbardziej wrażliwa z nich.
+  fields:
+    zone_id:
+      name: Numer strefy
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 8
+    plant_keys:
+      name: Rośliny (dosiewka/nasadzenie)
+      required: true
+      selector:
+        select:
+          multiple: true
+          mode: list
+          options:
+            - value: trawnik
+              label: Trawnik ozdobny
+            - value: warzywa_liste
+              label: Warzywa liściaste (sałata, kapusta...)
+            - value: warzywa_korzeniowe
+              label: Warzywa korzeniowe (marchew, ziemniaki...)
+            - value: truskawki
+              label: Truskawki / poziomki
+            - value: roze
+              label: Róże
+            - value: byliny_ogolne
+              label: Byliny ogrodowe (ogólnie)
+            - value: hortensje
+              label: Hortensje
+            - value: funkie
+              label: Funkie / hosty
+            - value: trawy_ozdobne
+              label: Wysokie trawy ozdobne
+            - value: krzewy_liesciaste
+              label: Krzewy liściaste ozdobne (ogólnie)
+            - value: zywoplot_liesciasty
+              label: Żywopłot liściasty formowany
+            - value: zywoplot_iglasty
+              label: Żywopłot / krzewy iglaste (tuje, cyprysiki)
+            - value: iglaki_duze
+              label: Duże iglaki (jodły, sosny, świerki)
+            - value: cisy
+              label: Cisy
+            - value: plozence_iglaste
+              label: Płożące iglaki (jałowce płożące itp.)
+            - value: drzewa_liesciaste
+              label: Drzewa liściaste dojrzałe
+            - value: drzewa_owocowe
+              label: Drzewa owocowe
+            - value: donice
+              label: Rośliny w donicach / pojemnikach (ogólnie)
+
+cancel_new_planting:
+  name: Zakończ dosiewkę / nowe nasadzenie
+  description: >
+    Ręcznie kończy stadium wzrostu przed czasem i natychmiast wraca do
+    standardowego podlewania opartego na deficycie wody w glebie (np. w razie
+    pomyłki przy wyborze roślin).
+  fields:
+    zone_id:
+      name: Numer strefy
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 8
