@@ -447,6 +447,27 @@ def _suggested_rate_mmh(prefix: str, defaults: dict[str, Any], learned_rate: flo
     return None
 
 
+def _nasadzenia_schema(configured_zones: list[int], merged: dict[str, Any]) -> dict:
+    """Krok 'Dosiewka / nowe nasadzenie' - dla każdej JUŻ SKONFIGUROWANEJ
+    strefy (ma przypisany zawór) dwa pola: przełącznik (domyślnie ZAWSZE
+    wyłączony - to pole akcji, nie zapisywane w konfiguracji, patrz
+    async_step_nasadzenia) i lista roślin do wyboru, ograniczona do roślin
+    JUŻ przypisanych do tej strefy (tak samo jak _root_depth_override_options)."""
+    schema: dict[Any, Any] = {}
+    for i in configured_zones:
+        plant_keys = merged.get(f"zone{i}_{ZONE_FIELD_PLANTS}") or []
+        options = [
+            selector.SelectOptionDict(value=key, label=PLANTS[key]["label"])
+            for key in plant_keys
+            if key in PLANTS
+        ]
+        schema[vol.Optional(f"nasadzenie_zone{i}_start", default=False)] = selector.BooleanSelector()
+        schema[vol.Optional(f"nasadzenie_zone{i}_rosliny", default=[])] = selector.SelectSelector(
+            selector.SelectSelectorConfig(options=options, mode="dropdown", multiple=True)
+        )
+    return schema
+
+
 def _root_depth_override_options(selected_plant_keys: list[str]) -> list:
     """Buduje listę wyboru głębokości korzeni z roślin JUŻ ZAPISANYCH w tej
     strefie (z poprzedniego zapisu konfiguracji) - posortowaną rosnąco wg Kc,
@@ -678,10 +699,26 @@ class _GardenFlowMixin:
     def _finish(self, merged: dict[str, Any]):
         raise NotImplementedError
 
+    def _menu_step_ids(self) -> list[str]:
+        """Nadpisywane w OptionsFlow - dokłada krok 'nasadzenia', który ma
+        sens TYLKO przy edycji istniejącego wpisu (potrzebuje działającego
+        koordynatora, żeby cokolwiek uruchomić - przy pierwszej instalacji
+        koordynator jeszcze nie istnieje)."""
+        return MENU_STEP_IDS
+
+    async def _async_apply_new_plantings(
+        self, user_input: dict[str, Any], configured_zones: list[int]
+    ) -> None:
+        """Nadpisywane w OptionsFlow - patrz tam. W ConfigFlow (pierwsza
+        instalacja) krok 'nasadzenia' nigdy nie jest pokazywany (nie ma go
+        w _menu_step_ids), więc to nigdy nie powinno się wywołać - no-op
+        tylko dla bezpieczeństwa."""
+        return
+
     # --- menu główne -------------------------------------------------
 
     async def async_step_menu(self, user_input: dict[str, Any] | None = None):
-        return self.async_show_menu(step_id="menu", menu_options=MENU_STEP_IDS)
+        return self.async_show_menu(step_id="menu", menu_options=self._menu_step_ids())
 
     # --- 6 kategorii ---------------------------------------------------
 
@@ -748,6 +785,29 @@ class _GardenFlowMixin:
         return self.async_show_form(
             step_id=f"zone_{index}",
             data_schema=vol.Schema(_zone_schema(index, self._merged(), self._learned_rate(index))),
+        )
+
+    # --- dosiewka / nowe nasadzenie (tylko OptionsFlow, patrz _menu_step_ids)
+
+    def _configured_zone_ids(self) -> list[int]:
+        merged = self._merged()
+        zone_count = int(merged.get(CONF_ZONE_COUNT, DEFAULT_ZONE_COUNT))
+        zone_count = max(1, min(zone_count, MAX_ZONE_COUNT))
+        return [i for i in range(1, zone_count + 1) if merged.get(f"zone{i}_{ZONE_FIELD_SWITCH}")]
+
+    async def async_step_nasadzenia(self, user_input: dict[str, Any] | None = None):
+        configured_zones = self._configured_zone_ids()
+        if user_input is not None:
+            # celowo NIE self._data.update(user_input) - te pola to
+            # jednorazowa akcja (start podlewania), nie trwała konfiguracja;
+            # przy każdym kolejnym wejściu w ten krok wszystkie przełączniki
+            # mają wracać domyślnie na wyłączone, więc nic z tego nie trafia
+            # do zapisywanych opcji wpisu
+            await self._async_apply_new_plantings(user_input, configured_zones)
+            return await self.async_step_menu()
+        return self.async_show_form(
+            step_id="nasadzenia",
+            data_schema=vol.Schema(_nasadzenia_schema(configured_zones, self._merged())),
         )
 
     # --- zakończenie -----------------------------------------------------
@@ -822,6 +882,25 @@ class GardenIrrigationOptionsFlow(_GardenFlowMixin, config_entries.OptionsFlow):
         if not zstate:
             return None
         return zstate.get("learned_rate_mmh")
+
+    def _menu_step_ids(self) -> list[str]:
+        ids = list(MENU_STEP_IDS)
+        ids.insert(ids.index("finish"), "nasadzenia")
+        return ids
+
+    async def _async_apply_new_plantings(
+        self, user_input: dict[str, Any], configured_zones: list[int]
+    ) -> None:
+        coordinator = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+        if coordinator is None:
+            return
+        for i in configured_zones:
+            if not user_input.get(f"nasadzenie_zone{i}_start"):
+                continue
+            plant_keys = user_input.get(f"nasadzenie_zone{i}_rosliny") or []
+            if not plant_keys:
+                continue
+            await coordinator.async_start_new_planting(i, list(plant_keys))
 
     def _finish(self, merged: dict[str, Any]):
         return self.async_create_entry(title="", data=merged)
