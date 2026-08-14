@@ -29,18 +29,24 @@ CONF_ZONE_TRANSITION_DELAY_SEC = "zone_transition_delay_sec"  # przerwa między 
 CONF_VALVE_VERIFY_TIMEOUT_SEC = "valve_verify_timeout_sec"  # ile czekać na potwierdzenie otwarcia/zamknięcia zaworu
 CONF_START_MODE = "start_mode"
 CONF_START_OFFSET_MIN = "start_offset_min"
+CONF_START_CLOCK_TIME = "start_clock_time"  # stała godzina - punkt odniesienia dla trybów "_at_clock"
 
 START_MODE_FINISH_AT_SUNRISE = "finish_at_sunrise"  # start wyliczony wstecz, żeby OSTATNIA strefa skończyła o wschodzie
 START_MODE_AT_SUNRISE = "at_sunrise"                # start dokładnie o wschodzie
 START_MODE_BEFORE_SUNRISE = "before_sunrise"        # start X minut PRZED wschodem (stały offset)
 START_MODE_AFTER_SUNRISE = "after_sunrise"          # start X minut PO wschodzie (stały offset)
+START_MODE_FINISH_AT_CLOCK = "finish_at_clock"      # start wyliczony wstecz, żeby OSTATNIA strefa skończyła o wskazanej godzinie
+START_MODE_AT_CLOCK = "at_clock"                    # start dokładnie o wskazanej godzinie
 START_MODES = [
     START_MODE_FINISH_AT_SUNRISE,
     START_MODE_AT_SUNRISE,
     START_MODE_BEFORE_SUNRISE,
     START_MODE_AFTER_SUNRISE,
+    START_MODE_FINISH_AT_CLOCK,
+    START_MODE_AT_CLOCK,
 ]
 DEFAULT_START_MODE = START_MODE_FINISH_AT_SUNRISE
+DEFAULT_START_CLOCK_TIME = "06:00:00"
 DEFAULT_START_OFFSET_MIN = 30
 CONF_MAIN_FLOW_SENSOR = "main_flow_sensor"  # główny przepływomierz - suma litrów (skumulowany), domyślny dla stref bez własnego
 CONF_MAIN_FLOW_RATE_SENSOR = "main_flow_rate_sensor"  # główny przepływomierz - przepływ CHWILOWY (np. l/min), domyślny dla stref bez własnego

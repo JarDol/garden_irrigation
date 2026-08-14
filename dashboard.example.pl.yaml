@@ -580,6 +580,59 @@ views:
           | Rośliny w donicach (ogólnie) | 0.90 | 200 mm | 0.30 |
 
       - type: markdown
+        title: Słownik - dosiewka / nowe nasadzenie (częstotliwość i pora podlewania)
+        content: |
+          Dopóki strefa jest w stadium wzrostu (patrz karta "Dosiewka / nowe
+          nasadzenie" w zakładce Strefy), **nie korzysta** z tabeli Kc/głębokość
+          korzeni/MAD powyżej - zamiast tego podlewa wg WŁASNEGO, sztywnego
+          harmonogramu przypisanego do rośliny wiodącej wybranej przy starcie:
+
+          | Roślina | Kiełkowanie: dni / x dziennie / min | Młode rośliny: dni / x dziennie / min |
+          |---|---|---|
+          | Trawnik ozdobny | 14 / 2x / 5 min | 21 / 1x / 8 min |
+          | Warzywa liściaste | 10 / 2x / 5 min | 21 / 1x / 10 min |
+          | Warzywa korzeniowe | 14 / 2x / 5 min | 21 / 1x / 10 min |
+          | Truskawki / poziomki | 10 / 2x / 5 min | 21 / 1x / 8 min |
+          | Róże | 14 / 1x / 8 min | 30 / 1x / 10 min |
+          | Byliny ogrodowe (ogólnie) | 10 / 1x / 6 min | 21 / 1x / 10 min |
+          | Hortensje | 14 / 1x / 8 min | 30 / 1x / 10 min |
+          | Funkie / hosty | 10 / 1x / 6 min | 21 / 1x / 8 min |
+          | Wysokie trawy ozdobne | 14 / 1x / 6 min | 21 / 1x / 10 min |
+          | Krzewy liściaste ozdobne | 14 / 1x / 8 min | 30 / 1x / 10 min |
+          | Żywopłot liściasty formowany | 14 / 1x / 8 min | 30 / 1x / 10 min |
+          | Żywopłot / krzewy iglaste | 14 / 1x / 8 min | 35 / 1x / 10 min |
+          | Duże iglaki (jodły, sosny, świerki) | 14 / 1x / 10 min | 45 / 1x / 15 min |
+          | Cisy | 14 / 1x / 8 min | 35 / 1x / 10 min |
+          | Płożące iglaki | 14 / 1x / 8 min | 30 / 1x / 10 min |
+          | Drzewa liściaste dojrzałe | 14 / 1x / 10 min | 45 / 1x / 15 min |
+          | Drzewa owocowe | 14 / 1x / 10 min | 45 / 1x / 15 min |
+          | Rośliny w donicach (ogólnie) | 7 / 2x / 3 min | 14 / 1x / 5 min |
+
+          **O której godzinie to się dzieje?** Pierwsze podlewanie startuje w
+          momencie ręcznego uruchomienia dosiewki (przełącznik/usługa
+          `start_new_planting`). Każde kolejne odbywa się dokładnie co (24h /
+          liczba podlewań dziennie) od poprzedniego - np. przy "2x dziennie" to
+          co ok. 12h. To odstęp od momentu startu, a **NIE** stała pora dnia
+          czy godzina powiązana ze wschodem słońca jak przy głównym,
+          standardowym podlewaniu - jeśli dosiewkę uruchomiono np. o 14:00,
+          drugie podlewanie (przy 2x dziennie) wypadnie ok. 2:00 w nocy, a
+          trzeciego dnia godziny "popłyną" jeszcze dalej wraz z ewentualnymi
+          opóźnieniami (deszcz, mróz, inna strefa w trakcie pracy). Dokładny
+          czas najbliższego wymuszonego podlewania każdej strefy widać na
+          żywo w atrybucie `kolejne_podlewanie` sensora
+          `sensor.garden_irrigation_<strefa>_growth_stage` (karta "Stadium
+          wzrostu" w zakładce Strefy).
+
+          Chcesz przewidywalną, stałą porę dla GŁÓWNEGO podlewania (niezależną
+          od stadium wzrostu)? Od tej wersji tryb startu (Konfiguruj -> "Tryb
+          pracy i start podlewania") pozwala wybrać oprócz trybów względem
+          wschodu słońca również start o **wskazanej, stałej godzinie**
+          ("Start dokładnie o wskazanej godzinie" / "Zakończ ostatnią strefę o
+          wskazanej godzinie") - to jednak dotyczy startu CAŁEJ, standardowej
+          sekwencji stref, a nie kolejnych podlewań w trakcie dosiewki opisanych
+          wyżej, które i tak muszą powtarzać się kilka razy dziennie.
+
+      - type: markdown
         title: Słownik - domyślna wydajność wg typu nawadniania
         content: |
           | Typ nawadniania | Domyślna wydajność | Jak jest wyliczana |

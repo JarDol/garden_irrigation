@@ -47,6 +47,7 @@ from .const import (
     CONF_SOLAR_SENSOR,
     CONF_START_MODE,
     CONF_START_OFFSET_MIN,
+    CONF_START_CLOCK_TIME,
     CONF_TEMP_SENSOR,
     CONF_UPDATE_INTERVAL,
     CONF_VALVE_VERIFY_TIMEOUT_SEC,
@@ -74,6 +75,7 @@ from .const import (
     DEFAULT_SOIL,
     DEFAULT_START_MODE,
     DEFAULT_START_OFFSET_MIN,
+    DEFAULT_START_CLOCK_TIME,
     DEFAULT_UPDATE_INTERVAL,
     DEFAULT_VALVE_VERIFY_TIMEOUT_SEC,
     DEFAULT_WEATHER_FORECAST_HOURS,
@@ -152,6 +154,11 @@ def _schema_tryb_start(defaults: dict[str, Any]) -> vol.Schema:
                         selector.SelectOptionDict(
                             value="after_sunrise", label="Start X minut PO wschodzie (stały odstęp)"
                         ),
+                        selector.SelectOptionDict(
+                            value="finish_at_clock",
+                            label="Zakończ ostatnią strefę o wskazanej godzinie (wstecz od sumy czasów)",
+                        ),
+                        selector.SelectOptionDict(value="at_clock", label="Start dokładnie o wskazanej godzinie"),
                     ],
                     mode="dropdown",
                 )
@@ -162,6 +169,10 @@ def _schema_tryb_start(defaults: dict[str, Any]) -> vol.Schema:
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0, max=240, step=5, unit_of_measurement="min")
             ),
+            vol.Optional(
+                CONF_START_CLOCK_TIME,
+                default=defaults.get(CONF_START_CLOCK_TIME, DEFAULT_START_CLOCK_TIME),
+            ): selector.TimeSelector(),
             vol.Optional(
                 CONF_AUTO_TRIGGER_BUFFER_MIN,
                 default=defaults.get(CONF_AUTO_TRIGGER_BUFFER_MIN, DEFAULT_AUTO_TRIGGER_BUFFER_MIN),

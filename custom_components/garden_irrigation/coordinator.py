@@ -57,6 +57,7 @@ from .const import (
     CONF_SOLAR_SENSOR,
     CONF_START_MODE,
     CONF_START_OFFSET_MIN,
+    CONF_START_CLOCK_TIME,
     CONF_TEMP_SENSOR,
     CONF_UPDATE_INTERVAL,
     CONF_VALVE_VERIFY_TIMEOUT_SEC,
@@ -86,6 +87,7 @@ from .const import (
     DEFAULT_RAIN_FORECAST_LOOKBACK_MIN,
     DEFAULT_SOIL,
     DEFAULT_START_MODE,
+    DEFAULT_START_CLOCK_TIME,
     DEFAULT_START_OFFSET_MIN,
     DEFAULT_UPDATE_INTERVAL,
     DEFAULT_VALVE_VERIFY_TIMEOUT_SEC,
@@ -101,6 +103,8 @@ from .const import (
     START_MODE_AT_SUNRISE,
     START_MODE_BEFORE_SUNRISE,
     START_MODE_FINISH_AT_SUNRISE,
+    START_MODE_AT_CLOCK,
+    START_MODE_FINISH_AT_CLOCK,
     STORAGE_KEY_PREFIX,
     STORAGE_VERSION,
     ZONE_FIELD_AREA,
@@ -544,6 +548,34 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             return today_sunrise
         return self._compute_sunrise(now.date() + timedelta(days=1))
 
+    def _next_clock_time(self) -> datetime:
+        """Najbliższe nadchodzące wystąpienie stałej godziny startu skonfigurowanej
+        dla trybów '_at_clock' - dziś, jeśli jeszcze nie minęła, w przeciwnym razie
+        jutro. W odróżnieniu od wschodu słońca zawsze policzalne (nie zależy od
+        biblioteki astral ani lokalizacji)."""
+        now = dt_util.now()
+        time_str = self.cfg.get(CONF_START_CLOCK_TIME, DEFAULT_START_CLOCK_TIME)
+        try:
+            hh, mm, *rest = str(time_str).split(":")
+            target = now.replace(hour=int(hh), minute=int(mm), second=int(rest[0]) if rest else 0, microsecond=0)
+        except (ValueError, TypeError):
+            target = now.replace(
+                hour=int(DEFAULT_START_CLOCK_TIME[:2]), minute=int(DEFAULT_START_CLOCK_TIME[3:5]),
+                second=0, microsecond=0,
+            )
+        if target <= now:
+            target += timedelta(days=1)
+        return target
+
+    def _next_start_anchor(self) -> datetime | None:
+        """Najbliższy nadchodzący punkt odniesienia dla startu podlewania - wschód
+        słońca albo skonfigurowana stała godzina, zależnie od wybranego trybu
+        startu (patrz CONF_START_MODE)."""
+        mode = self.cfg.get(CONF_START_MODE, DEFAULT_START_MODE)
+        if mode in (START_MODE_AT_CLOCK, START_MODE_FINISH_AT_CLOCK):
+            return self._next_clock_time()
+        return self._next_sunrise()
+
     def _garden_elevation(self) -> float:
         """Wysokość n.p.m. - wprost z ogólnej konfiguracji lokalizacji HA."""
         return self.hass.config.elevation or 100.0
@@ -809,21 +841,27 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
 
     # ------------------------------------------------------ tryb automatyczny
 
-    def _target_start_bound(self, sunrise_dt: datetime, total_minutes: float, total_transition_min: float) -> datetime:
-        """Punkt odniesienia 'kiedy startujemy' wg wybranego trybu. Dla trybu
-        'zakończ o wschodzie' zależy od łącznego czasu (dlatego przyjmowany jako
-        parametr - przy planowaniu wyzwalacza używamy GÓRNEGO szacunku z
-        max_runtime, a przy faktycznym starcie dokładnych, bieżących minut)."""
+    def _target_start_bound(self, anchor_dt: datetime, total_minutes: float, total_transition_min: float) -> datetime:
+        """Punkt odniesienia 'kiedy startujemy' wg wybranego trybu, liczony
+        względem `anchor_dt` (wschód słońca albo skonfigurowana stała godzina -
+        patrz _next_start_anchor). Dla trybów 'zakończ o ...' zależy od łącznego
+        czasu (dlatego przyjmowany jako parametr - przy planowaniu wyzwalacza
+        używamy GÓRNEGO szacunku z max_runtime, a przy faktycznym starcie
+        dokładnych, bieżących minut). Tryby '_at_clock' celowo NIE mają wariantu
+        z odstępem X minut przed/po - przy stałej godzinie to tylko inna stała
+        godzina, więc użytkownik może to ustawić wprost w polu godziny."""
         mode = self.cfg.get(CONF_START_MODE, DEFAULT_START_MODE)
         offset_min = int(self.cfg.get(CONF_START_OFFSET_MIN, DEFAULT_START_OFFSET_MIN))
         if mode == START_MODE_AT_SUNRISE:
-            return sunrise_dt
+            return anchor_dt
         if mode == START_MODE_BEFORE_SUNRISE:
-            return sunrise_dt - timedelta(minutes=offset_min)
+            return anchor_dt - timedelta(minutes=offset_min)
         if mode == START_MODE_AFTER_SUNRISE:
-            return sunrise_dt + timedelta(minutes=offset_min)
-        # domyślnie: START_MODE_FINISH_AT_SUNRISE
-        return sunrise_dt - timedelta(minutes=total_minutes + total_transition_min)
+            return anchor_dt + timedelta(minutes=offset_min)
+        if mode == START_MODE_AT_CLOCK:
+            return anchor_dt
+        # domyślnie / START_MODE_FINISH_AT_SUNRISE / START_MODE_FINISH_AT_CLOCK
+        return anchor_dt - timedelta(minutes=total_minutes + total_transition_min)
 
     def _schedule_auto_trigger(self) -> None:
         """Liczy moment 'obudzenia się' integracji względem wybranego trybu
@@ -837,8 +875,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             self._auto_trigger_unsub()
             self._auto_trigger_unsub = None
 
-        sunrise_dt = self._next_sunrise()
-        if sunrise_dt is None:
+        anchor_dt = self._next_start_anchor()
+        if anchor_dt is None:
             _LOGGER.warning("Tryb automatyczny: nie udało się wyliczyć wschodu - nie zaplanowano wyzwalacza")
             return
 
@@ -850,14 +888,14 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         total_max_runtime = sum(z["max_runtime_min"] for z in self.zones.values())
         buffer_min = int(self.cfg.get(CONF_AUTO_TRIGGER_BUFFER_MIN, DEFAULT_AUTO_TRIGGER_BUFFER_MIN))
 
-        target_bound = self._target_start_bound(sunrise_dt, total_max_runtime, total_transition_min)
+        target_bound = self._target_start_bound(anchor_dt, total_max_runtime, total_transition_min)
         trigger_time = target_bound - timedelta(minutes=buffer_min)
 
         now = dt_util.now()
         if trigger_time <= now:
             today_str = now.date().isoformat()
             already_ran_today = self._data.get("last_auto_trigger_date") == today_str
-            if not already_ran_today and now < sunrise_dt:
+            if not already_ran_today and now < anchor_dt:
                 # zaplanowany czas już minął (typowo: HA było wyłączone/w
                 # trakcie restartu dokładnie w tym momencie) - ale dzisiejsza
                 # sekwencja jeszcze się NIE odbyła i wschód jeszcze nie minął,
@@ -882,8 +920,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             return
 
         _LOGGER.info(
-            "Tryb automatyczny: zaplanowano samoczynne przeliczenie/start na %s (wschód %s, bufor %s min)",
-            trigger_time, sunrise_dt, buffer_min,
+            "Tryb automatyczny: zaplanowano samoczynne przeliczenie/start na %s (punkt odniesienia %s, bufor %s min)",
+            trigger_time, anchor_dt, buffer_min,
         )
         self._auto_trigger_unsub = async_track_point_in_time(
             self.hass, self._async_auto_trigger_fired, trigger_time
@@ -2337,8 +2375,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             _LOGGER.info("Podlewanie wstrzymane globalnie (przełącznik pauzy) - sekwencja nie zaplanowana")
             return
 
-        sunrise_dt = self._next_sunrise()
-        if sunrise_dt is None:
+        anchor_dt = self._next_start_anchor()
+        if anchor_dt is None:
             _LOGGER.warning("Nie udało się wyliczyć wschodu słońca - sekwencja nie zaplanowana")
             return
 
@@ -2395,7 +2433,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         )
         total_minutes = sum(minutes for _, minutes in queue)
         total_transition_min = (len(queue) - 1) * transition_delay_sec / 60 if len(queue) > 1 else 0
-        start_time = self._target_start_bound(sunrise_dt, total_minutes, total_transition_min)
+        start_time = self._target_start_bound(anchor_dt, total_minutes, total_transition_min)
         now = dt_util.now()
         if start_time <= now:
             _LOGGER.info(
@@ -2422,7 +2460,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "status": "scheduled",
             "computed_at": dt_util.utcnow().isoformat(),
             "start": start_time.isoformat(),
-            "sunrise_target": sunrise_dt.isoformat(),
+            "anchor_target": anchor_dt.isoformat(),
             "total_minutes": total_minutes,
             "zones": zone_plan,
         }
@@ -2431,7 +2469,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
 
         _LOGGER.info(
             "Zaplanowano sekwencję %s stref (łącznie %s min), start %s, planowany koniec %s",
-            len(queue), total_minutes, start_time, sunrise_dt,
+            len(queue), total_minutes, start_time, anchor_dt,
         )
         self.hass.async_create_task(self._async_sequence_worker(queue, start_time))
 

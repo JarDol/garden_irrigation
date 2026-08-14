@@ -20,8 +20,9 @@
         "title": "Tryb pracy i start podlewania",
         "data": {
           "auto_mode_enabled": "Włącz w pełni automatyczne podlewanie (bez ręcznego zatwierdzania)",
-          "start_mode": "Tryb ustalania startu podlewania względem wschodu słońca",
+          "start_mode": "Tryb ustalania startu podlewania (względem wschodu słońca lub wskazanej godziny)",
           "start_offset_min": "Odstęp w minutach (używany dla trybów 'przed/po wschodzie')",
+          "start_clock_time": "Stała godzina startu (używana dla trybów 'o wskazanej godzinie')",
           "auto_trigger_buffer_min": "Bufor bezpieczeństwa przy liczeniu wyzwalacza (min)"
         }
       },
@@ -1113,8 +1114,9 @@
         "title": "Tryb pracy i start podlewania",
         "data": {
           "auto_mode_enabled": "Włącz w pełni automatyczne podlewanie (bez ręcznego zatwierdzania)",
-          "start_mode": "Tryb ustalania startu podlewania względem wschodu słońca",
+          "start_mode": "Tryb ustalania startu podlewania (względem wschodu słońca lub wskazanej godziny)",
           "start_offset_min": "Odstęp w minutach (używany dla trybów 'przed/po wschodzie')",
+          "start_clock_time": "Stała godzina startu (używana dla trybów 'o wskazanej godzinie')",
           "auto_trigger_buffer_min": "Bufor bezpieczeństwa przy liczeniu wyzwalacza (min)"
         }
       },

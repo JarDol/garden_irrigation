@@ -20,8 +20,9 @@
         "title": "Operating mode & watering start",
         "data": {
           "auto_mode_enabled": "Enable fully automatic watering (no manual approval)",
-          "start_mode": "Mode for determining watering start time relative to sunrise",
+          "start_mode": "Mode for determining watering start time (relative to sunrise or a fixed clock time)",
           "start_offset_min": "Offset in minutes (used for 'before/after sunrise' modes)",
+          "start_clock_time": "Fixed start time (used for the 'at a set time' modes)",
           "auto_trigger_buffer_min": "Safety buffer when calculating the trigger time (min)"
         }
       },
@@ -1113,8 +1114,9 @@
         "title": "Operating mode & watering start",
         "data": {
           "auto_mode_enabled": "Enable fully automatic watering (no manual approval)",
-          "start_mode": "Mode for determining watering start time relative to sunrise",
+          "start_mode": "Mode for determining watering start time (relative to sunrise or a fixed clock time)",
           "start_offset_min": "Offset in minutes (used for 'before/after sunrise' modes)",
+          "start_clock_time": "Fixed start time (used for the 'at a set time' modes)",
           "auto_trigger_buffer_min": "Safety buffer when calculating the trigger time (min)"
         }
       },

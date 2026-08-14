@@ -716,7 +716,7 @@ class SequenceStartSensor(CoordinatorEntity, SensorEntity):
             return {"status": "brak_zaplanowanej_sekwencji"}
         return {
             "status": plan.get("status"),
-            "planowany_wschod_slonca": plan.get("sunrise_target"),
+            "planowany_punkt_odniesienia": plan.get("anchor_target"),
             "laczny_czas_min": plan.get("total_minutes"),
             "kolejnosc_stref": plan.get("zones"),
             "obliczono_o": plan.get("computed_at"),

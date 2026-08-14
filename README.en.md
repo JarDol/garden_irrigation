@@ -80,6 +80,7 @@ about it via Settings → System → Repairs instead of silently doing nothing.
 | Rain threshold for SKIPPING watering entirely (mm) | If the forecast shows rainfall ≥ this threshold, the zone is skipped entirely for that day (not just given a smaller dose) |
 | Start mode | See the "When exactly does watering start" section below |
 | Offset in minutes | Only used for the "before/after sunrise" modes |
+| Fixed start time | Only used for the "at the set time" modes |
 | Fast "is it raining now" detector | Optional - a `binary_sensor` (dedicated rain sensor) OR a plain numeric `sensor` with rain intensity in mm/h (e.g. `sensor.your_weather_station_rain_rate`) - the integration recognizes the type from the entity's domain. For a numeric sensor, it compares the value against the "Rain intensity threshold (mm/h)". Speeds up detecting the start of rain during watering (see the pause section) |
 | Rain threshold that triggers a pause DURING watering (mm) | How much rain (mm) must fall before the integration interrupts active watering (default 0.3 mm) |
 | How often to check rainfall while running/paused | Check frequency during active watering and during a pause (default 2 min) |
@@ -313,9 +314,16 @@ configuration:
 | Start exactly at sunrise | `start = sunrise`, regardless of how long it takes |
 | Start X minutes BEFORE sunrise | `start = sunrise − X` (fixed offset, set by the "Offset in minutes" field) |
 | Start X minutes AFTER sunrise | `start = sunrise + X` (fixed offset) |
+| Finish the last zone at the set time | same as above, but the reference point is a fixed time (the "Fixed start time" field) instead of sunrise - useful for a predictable time that doesn't drift with the season |
+| Start exactly at the set time | `start = the set time`, regardless of how long it takes |
 
-If the calculated start would fall in the past (e.g. the total time is too large for the "finish
-at sunrise" mode), the sequence starts immediately, without waiting.
+The "at the set time" modes intentionally have no "X minutes before/after" variant - with a fixed
+time that would just be another fixed time, so you can set the difference directly in the time
+field. Unlike sunrise, a fixed time doesn't depend on the `astral` library or the garden's
+location - it works even if computing sunrise would fail for some reason.
+
+If the calculated start would fall in the past (e.g. the total time is too large for a "finish at
+..." mode), the sequence starts immediately, without waiting.
 
 This can also be triggered manually: the "Schedule sequence before sunrise" button, or the
 `garden_irrigation.run_sequence_before_sunrise` service.

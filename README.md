@@ -81,6 +81,7 @@ cichu nic nie robić.
 | Próg opadu do CAŁKOWITEGO pominięcia podlewania (mm) | Jeśli prognoza pokazuje opad ≥ ten próg, strefa jest tego dnia całkowicie pomijana (nie tylko zmniejszana dawka) |
 | Tryb ustalania startu | Patrz sekcja "Kiedy dokładnie startuje podlewanie" niżej |
 | Odstęp w minutach | Używany tylko dla trybów "przed/po wschodzie" |
+| Stała godzina startu | Używana tylko dla trybów "o wskazanej godzinie" |
 | Szybki detektor "czy pada teraz" | Opcjonalnie - `binary_sensor` (dedykowany czujnik deszczu) LUB zwykły `sensor` liczbowy z natężeniem opadu w mm/h (np. `sensor.ws_rain_rate`) - integracja rozpoznaje typ po domenie encji. Dla sensora liczbowego porównuje wartość z progiem "Próg intensywności opadu (mm/h)". Przyspiesza wykrycie początku opadu w trakcie podlewania (patrz sekcja o pauzie) |
 | Próg opadu wywołujący pauzę W TRAKCIE podlewania (mm) | Ile mm musi spaść, żeby integracja przerwała aktywne podlewanie (domyślnie 0,3 mm) |
 | Co ile minut sprawdzać opad podczas pracy/pauzy | Częstotliwość kontroli w trakcie aktywnego podlewania i w trakcie pauzy (domyślnie 2 min) |
@@ -320,9 +321,16 @@ ustalania startu" w konfiguracji:
 | Start dokładnie o wschodzie | `start = wschód`, niezależnie od tego, ile to potrwa |
 | Start X minut PRZED wschodem | `start = wschód − X` (stały odstęp, ustawiany polem "Odstęp w minutach") |
 | Start X minut PO wschodzie | `start = wschód + X` (stały odstęp) |
+| Zakończ ostatnią strefę o wskazanej godzinie | jak wyżej, ale zamiast wschodu punktem odniesienia jest stała godzina ustawiona w polu "Stała godzina startu" - przydatne, gdy chcesz przewidywalną porę niezależną od pory roku |
+| Start dokładnie o wskazanej godzinie | `start = wskazana godzina`, niezależnie od tego, ile to potrwa |
+
+Tryby "o wskazanej godzinie" celowo nie mają wariantu "X minut przed/po" - przy stałej godzinie
+to i tak tylko inna stała godzina, więc różnicę można od razu ustawić wprost w polu godziny. W
+odróżnieniu od wschodu, stała godzina nie zależy od biblioteki `astral` ani lokalizacji ogrodu -
+działa nawet gdyby wyliczenie wschodu z jakiegoś powodu zawiodło.
 
 Jeśli wyliczony start wypadłby w przeszłości (np. suma czasów zbyt duża na tryb "zakończ o
-wschodzie"), sekwencja startuje natychmiast, bez czekania.
+wschodzie"/"zakończ o wskazanej godzinie"), sekwencja startuje natychmiast, bez czekania.
 
 Można to uruchomić ręcznie: przycisk "Zaplanuj sekwencję przed wschodem" albo usługa
 `garden_irrigation.run_sequence_before_sunrise`.
