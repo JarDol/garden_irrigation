@@ -16,6 +16,8 @@ views:
             name: Global switch (holiday mode)
           - entity: switch.garden_irrigation_dynamic_mad_enabled
             name: Dynamic MAD adjustment (FAO-56)
+          - entity: switch.garden_irrigation_allow_simultaneous_watering
+            name: Allow simultaneous watering of zones
           - entity: sensor.garden_irrigation_sequence_start_time
             name: Next sequence start
           - entity: sensor.garden_irrigation_et0_yesterday
@@ -75,6 +77,12 @@ views:
             name: Application rate (effective)
           - entity: sensor.garden_irrigation_zone_01_water_used_last
             name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_01_water_used_last_scheduled
+            name: Water used during last scheduled watering
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_01_water_used_last_scheduled
+            attribute: kiedy
+            name: Date of last scheduled watering
           - entity: sensor.garden_irrigation_zone_01_water_used_today
             name: Water used today
           - entity: sensor.garden_irrigation_zone_01_water_used_month
@@ -111,6 +119,12 @@ views:
             name: Application rate (effective)
           - entity: sensor.garden_irrigation_zone_02_water_used_last
             name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_02_water_used_last_scheduled
+            name: Water used during last scheduled watering
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_02_water_used_last_scheduled
+            attribute: kiedy
+            name: Date of last scheduled watering
           - entity: sensor.garden_irrigation_zone_02_water_used_today
             name: Water used today
           - entity: sensor.garden_irrigation_zone_02_water_used_month
@@ -147,6 +161,12 @@ views:
             name: Application rate (effective)
           - entity: sensor.garden_irrigation_zone_03_water_used_last
             name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_03_water_used_last_scheduled
+            name: Water used during last scheduled watering
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_03_water_used_last_scheduled
+            attribute: kiedy
+            name: Date of last scheduled watering
           - entity: sensor.garden_irrigation_zone_03_water_used_today
             name: Water used today
           - entity: sensor.garden_irrigation_zone_03_water_used_month
@@ -183,6 +203,12 @@ views:
             name: Application rate (effective)
           - entity: sensor.garden_irrigation_zone_04_water_used_last
             name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_04_water_used_last_scheduled
+            name: Water used during last scheduled watering
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_04_water_used_last_scheduled
+            attribute: kiedy
+            name: Date of last scheduled watering
           - entity: sensor.garden_irrigation_zone_04_water_used_today
             name: Water used today
           - entity: sensor.garden_irrigation_zone_04_water_used_month
@@ -219,6 +245,12 @@ views:
             name: Application rate (effective)
           - entity: sensor.garden_irrigation_zone_05_water_used_last
             name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_05_water_used_last_scheduled
+            name: Water used during last scheduled watering
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_05_water_used_last_scheduled
+            attribute: kiedy
+            name: Date of last scheduled watering
           - entity: sensor.garden_irrigation_zone_05_water_used_today
             name: Water used today
           - entity: sensor.garden_irrigation_zone_05_water_used_month
@@ -255,6 +287,12 @@ views:
             name: Application rate (effective)
           - entity: sensor.garden_irrigation_zone_06_water_used_last
             name: Water used during last watering
+          - entity: sensor.garden_irrigation_zone_06_water_used_last_scheduled
+            name: Water used during last scheduled watering
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_06_water_used_last_scheduled
+            attribute: kiedy
+            name: Date of last scheduled watering
           - entity: sensor.garden_irrigation_zone_06_water_used_today
             name: Water used today
           - entity: sensor.garden_irrigation_zone_06_water_used_month
@@ -287,6 +325,8 @@ views:
           - entity: sensor.garden_irrigation_zone_01_recommended_watering
             name: Rain during pause (attribute)
             attribute: rain_during_current_pause_mm
+          - entity: sensor.garden_irrigation_zone_01_growth_stage
+            name: Growth stage (new planting/reseeding)
           - entity: button.garden_irrigation_zone_01_approve_and_run
             name: Approve and run
           - entity: button.garden_irrigation_zone_01_skip_today
@@ -304,6 +344,8 @@ views:
           - entity: sensor.garden_irrigation_zone_02_recommended_watering
             name: Rain during pause (attribute)
             attribute: rain_during_current_pause_mm
+          - entity: sensor.garden_irrigation_zone_02_growth_stage
+            name: Growth stage (new planting/reseeding)
           - entity: button.garden_irrigation_zone_02_approve_and_run
             name: Approve and run
           - entity: button.garden_irrigation_zone_02_skip_today
@@ -321,6 +363,8 @@ views:
           - entity: sensor.garden_irrigation_zone_03_recommended_watering
             name: Rain during pause (attribute)
             attribute: rain_during_current_pause_mm
+          - entity: sensor.garden_irrigation_zone_03_growth_stage
+            name: Growth stage (new planting/reseeding)
           - entity: button.garden_irrigation_zone_03_approve_and_run
             name: Approve and run
           - entity: button.garden_irrigation_zone_03_skip_today
@@ -338,6 +382,8 @@ views:
           - entity: sensor.garden_irrigation_zone_04_recommended_watering
             name: Rain during pause (attribute)
             attribute: rain_during_current_pause_mm
+          - entity: sensor.garden_irrigation_zone_04_growth_stage
+            name: Growth stage (new planting/reseeding)
           - entity: button.garden_irrigation_zone_04_approve_and_run
             name: Approve and run
           - entity: button.garden_irrigation_zone_04_skip_today
@@ -355,6 +401,8 @@ views:
           - entity: sensor.garden_irrigation_zone_05_recommended_watering
             name: Rain during pause (attribute)
             attribute: rain_during_current_pause_mm
+          - entity: sensor.garden_irrigation_zone_05_growth_stage
+            name: Growth stage (new planting/reseeding)
           - entity: button.garden_irrigation_zone_05_approve_and_run
             name: Approve and run
           - entity: button.garden_irrigation_zone_05_skip_today
@@ -372,10 +420,53 @@ views:
           - entity: sensor.garden_irrigation_zone_06_recommended_watering
             name: Rain during pause (attribute)
             attribute: rain_during_current_pause_mm
+          - entity: sensor.garden_irrigation_zone_06_growth_stage
+            name: Growth stage (new planting/reseeding)
           - entity: button.garden_irrigation_zone_06_approve_and_run
             name: Approve and run
           - entity: button.garden_irrigation_zone_06_skip_today
             name: Skip today
+
+      - type: button
+        name: Open integration configuration
+        icon: mdi:cog
+        tap_action:
+          action: navigate
+          navigation_path: /config/integrations/integration/garden_irrigation
+
+      - type: markdown
+        title: New planting / reseeding - how to start it
+        content: >
+          **Easiest via the integration configuration** (since v1.17.2): the
+          "Open integration configuration" button above -> on the integration
+          card click **Configure** (gear icon / three dots) -> pick
+          **"New planting / reseeding"** from the main menu -> toggle the
+          switch for a zone and pick the plants (only those already assigned
+          to that zone) -> **Save**. The zone immediately moves into the
+          "Germination" stage, then automatically "Young plants", until it
+          returns to standard. The toggle always shows the zone's real state -
+          turning it off for a zone with an active growth stage **cancels it**
+          and returns to standard right away. NOTE: HA doesn't support linking
+          directly to a specific wizard step - the button only opens the
+          integration list, "Configure" and picking "New planting /
+          reseeding" have to be clicked manually every time.
+
+
+          **Alternatively** (e.g. from automations) - services called via
+          **Developer Tools -> Actions**:
+
+
+          - `garden_irrigation.start_new_planting` - fields: `zone_id` (zone
+          number) and `plant_keys` (list of plants already assigned to that
+          zone)
+
+          - `garden_irrigation.cancel_new_planting` - field: `zone_id` -
+          manually, immediately ends the growth stage (e.g. a mistake when
+          picking plants)
+
+
+          Live status is shown in the "Growth stage" sensor above, in every
+          zone card.
 
   # ============================================================
   # TAB 4: INFO (live zone parameters + static reference dictionary)

@@ -41,6 +41,10 @@ falling during the watering itself.
   interval between waterings is skipped for that day), in cool weather it's higher.
 - Tracks water-usage statistics (daily/monthly, per zone and total) and reports hardware problems
   (missing entity, unresponsive valve) through Home Assistant's built-in Repairs mechanism.
+- Has a separate, more frequent watering mode for freshly seeded grass/new plantings (reseeding)
+  - automatically returns to standard once the growth stages finish.
+- Guarantees that no two valves are ever open at the same time (unless you deliberately allow
+  it) - no matter what specifically triggered a given watering.
 
 ## Installation
 
@@ -550,6 +554,24 @@ with the first, the integration:
 The same verification mechanism also applies to a single manual zone activation (button /
 `run_zone` service), not just within a sequence.
 
+## Watering queue (no simultaneous valves)
+
+By default, the integration guarantees that **no two valves are ever open at the same time** -
+regardless of whether they were triggered by manual approval, `approve_all`, the pre-sunrise
+sequence, or a growth stage (new planting/reseeding, see below). Every valve opening goes
+through a shared lock (FIFO) - if another zone is currently watering, the request simply waits
+in line instead of opening a second valve in parallel.
+
+This matters especially for growth stages, which can water several times a day independently
+of the main schedule - without this lock they could overlap with the pre-sunrise sequence or a
+manual approval of another zone and open a second valve at the same time.
+
+This can be disabled with the `switch.garden_irrigation_allow_simultaneous_watering` switch
+("Allow simultaneous watering of zones") - all zones can then start in parallel, as before.
+Only enable it if you know your plumbing/water pressure can actually handle it - most home
+irrigation mains can't hold full pressure with several valves open at once. Off by default (the
+safer option).
+
 ## Minimum interval between waterings
 
 The water-balance model itself already naturally leads to less frequent, deeper watering than a
@@ -593,6 +615,59 @@ calibration), with no daily adjustment and no automatic bypass of the minimum in
 `dynamic_mad_enabled` field in the setup wizard only sets the **initial** value on first
 installation - later changes are actually controlled by this switch, not the wizard.
 
+## New planting / reseeding (growth stages)
+
+Freshly seeded grass or newly planted plants need much more frequent, shallower watering than
+already established vegetation in the same zone - the standard soil-water-balance model (tuned
+for a mature plant) would miss that entirely. For this situation, every plant in the
+integration's catalog also has a **growth-stage schedule** defined:
+
+1. **Germination** - the most frequent, shortest waterings (typically several times a day for
+   1-2 weeks, depending on the plant).
+2. **Young plants** - less often, but still more frequent than standard (typically once a day
+   for another 2-4 weeks).
+3. **Standard** - the integration automatically returns to the normal soil-water balance.
+
+For the whole duration of the growth stages, the zone **bypasses** the normal soil-moisture-
+deficit (SMD) decision logic - it waters purely on the frequency defined for the current stage,
+regardless of what the actual deficit would be. It still respects the global pause
+(`switch.garden_irrigation_irrigation_paused`) and frost risk, but deliberately **not** rain,
+the rain forecast, or wind - freshly planted vegetation needs regularity more than water
+savings at this stage.
+
+### How to start it
+
+**From the GUI** (since version 1.17.2) - available only in the **Options** of an already
+installed integration (not in the first-install wizard, since the step needs a running
+coordinator): Settings → Devices & services → Garden - Smart Irrigation → **Configure** → pick
+**"New planting / reseeding"** from the main menu. For each configured zone there's a toggle
+(reflects whether the zone currently has an active growth stage) and a plant picker limited to
+the plants **already assigned** to that zone. Turning the toggle on, picking plants, and saving
+**starts** the new planting; turning the toggle off for a zone with an already-running stage
+**cancels** it and immediately returns to standard.
+
+**Via services** (e.g. from an automation, or Developer Tools → Actions):
+
+| Service | Parameters | Effect |
+|---|---|---|
+| `garden_irrigation.start_new_planting` | `zone_id`, `plant_keys` (plants already assigned to the zone) | Starts the growth stage for the zone |
+| `garden_irrigation.cancel_new_planting` | `zone_id` | Immediately ends the growth stage, returns to standard |
+
+### Several plants at once in one zone
+
+A zone has a single, shared stage schedule, not one per plant. If you select several plants at
+once (e.g. reseeding the lawn while planting new shrubs next to it), the integration picks the
+**"weakest"** one - the one with the lowest MAD threshold (the same sensitivity indicator the
+integration already uses for mixed plantings in normal mode) - and ITS schedule (both stages'
+durations and frequencies) governs the whole zone cycle from start to finish.
+
+### Live status
+
+`sensor.<zone>_growth_stage` - the value is the current stage ("Germination" / "Young plants" /
+"standard"), attributes: whether active, the leading plant (the one whose schedule was used),
+selected plants, when it started, end of the current stage, when it returns to standard, next
+scheduled watering, last watering.
+
 ## Protection against wind and frost
 
 - **Wind**: zones marked as `wind_sensitive` (typically sprinklers - drift, uneven coverage) are
@@ -623,6 +698,16 @@ to 0.1 L** (not 0.01 L) - this is the real precision ceiling of a typical water 
 Assistant (`device_class: water`), which itself reports volume in m³ with a limited number of
 decimal places; showing a second decimal place would suggest a precision the reading physically
 doesn't have.
+
+**Last watering - scheduled vs. any.** The "water used during last watering" sensor gets
+overwritten by EVERY valve opening, including a short, manual test via the `run_zone` service
+(e.g. a few seconds to check the valve works) - which makes it useless for telling when a zone
+actually last got a full, scheduled watering. A separate sensor
+`sensor.<zone>_water_used_last_scheduled_watering` is written to ONLY by waterings that come
+from the integration's own schedule (approval/`approve_all`, the pre-sunrise sequence, growth
+stages) - manual `run_zone` tests never touch it, so it always reflects the real history of
+when the zone was last watered according to plan, no matter how many times someone manually
+checked the valve in between.
 
 ## Home Assistant Repairs notices
 
@@ -749,16 +834,24 @@ situation at any given moment of the day.
 - per zone, `sensor.<zone>_water_used_today` / `_water_used_this_month` / `_water_used_this_year`
   (liters)
 - per zone, `sensor.<zone>_water_used_last_watering` (liters) - just the most recent, single
-  watering (not a sum), with a `when` attribute
+  watering (not a sum), with a `when` attribute - overwritten by EVERY watering, including
+  manual `run_zone` tests (see "Water-usage statistics")
+- per zone, `sensor.<zone>_water_used_last_scheduled_watering` (liters) - the same, but ONLY for
+  waterings coming from the integration's own schedule (approval/`approve_all`, the pre-sunrise
+  sequence, growth stages) - manual `run_zone` tests never overwrite it
 - `sensor.total_water_today` / `_this_month` / `_this_year` (liters, whole garden)
 - `sensor.garden_irrigation_total_water_last` - the sum of the most recent single watering of
   EVERY zone individually (not necessarily the same day for all of them), with a per-zone
   breakdown in the attributes
+- per zone, `sensor.<zone>_growth_stage` - the new-planting/reseeding state (see "New planting /
+  reseeding (growth stages)")
 
 **Switches:**
 - `switch.garden_irrigation_irrigation_paused` - global pause (holiday mode), see above
 - `switch.garden_irrigation_dynamic_mad_enabled` - turns the dynamic FAO-56 MAD adjustment on/off
   (see "Minimum interval between waterings")
+- `switch.garden_irrigation_allow_simultaneous_watering` - lets zones water in parallel instead
+  of queuing (see "Watering queue")
 
 **Binary sensors:**
 - per zone, `binary_sensor.<zone>_rain_paused` - on when THAT zone is currently paused because of
@@ -780,6 +873,8 @@ situation at any given moment of the day.
 | `garden_irrigation.skip_zone` | `zone_id` | Cancels today's recommendation without watering |
 | `garden_irrigation.run_zone` | `zone_id`, `minutes` | Manually runs a zone for a given time, independent of the recommendation |
 | `garden_irrigation.run_sequence_before_sunrise` | - | Builds and schedules the sequence of all approved zones, calculating the start backwards from sunrise |
+| `garden_irrigation.start_new_planting` | `zone_id`, `plant_keys` | Starts new planting/reseeding for a zone - see "New planting / reseeding" |
+| `garden_irrigation.cancel_new_planting` | `zone_id` | Ends new planting/reseeding early, returns to standard |
 
 ## Calibration
 

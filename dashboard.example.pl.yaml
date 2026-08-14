@@ -16,6 +16,8 @@ views:
             name: Wyłącznik globalny (tryb urlopowy)
           - entity: switch.garden_irrigation_dynamic_mad_enabled
             name: Dynamiczna korekta MAD (FAO-56)
+          - entity: switch.garden_irrigation_allow_simultaneous_watering
+            name: Zezwalaj na jednoczesne podlewanie stref
           - entity: sensor.garden_irrigation_sequence_start_time
             name: Najbliższy start sekwencji
           - entity: sensor.garden_irrigation_et0_yesterday
@@ -75,6 +77,12 @@ views:
             name: Wydajność (efektywna)
           - entity: sensor.garden_irrigation_zone_01_water_used_last
             name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_01_water_used_last_scheduled
+            name: Zużycie podczas ostatniego podlewania (harmonogram)
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_01_water_used_last_scheduled
+            attribute: kiedy
+            name: Data ostatniego podlewania (harmonogram)
           - entity: sensor.garden_irrigation_zone_01_water_used_today
             name: Zużycie dziś
           - entity: sensor.garden_irrigation_zone_01_water_used_month
@@ -111,6 +119,12 @@ views:
             name: Wydajność (efektywna)
           - entity: sensor.garden_irrigation_zone_02_water_used_last
             name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_02_water_used_last_scheduled
+            name: Zużycie podczas ostatniego podlewania (harmonogram)
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_02_water_used_last_scheduled
+            attribute: kiedy
+            name: Data ostatniego podlewania (harmonogram)
           - entity: sensor.garden_irrigation_zone_02_water_used_today
             name: Zużycie dziś
           - entity: sensor.garden_irrigation_zone_02_water_used_month
@@ -147,6 +161,12 @@ views:
             name: Wydajność (efektywna)
           - entity: sensor.garden_irrigation_zone_03_water_used_last
             name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_03_water_used_last_scheduled
+            name: Zużycie podczas ostatniego podlewania (harmonogram)
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_03_water_used_last_scheduled
+            attribute: kiedy
+            name: Data ostatniego podlewania (harmonogram)
           - entity: sensor.garden_irrigation_zone_03_water_used_today
             name: Zużycie dziś
           - entity: sensor.garden_irrigation_zone_03_water_used_month
@@ -183,6 +203,12 @@ views:
             name: Wydajność (efektywna)
           - entity: sensor.garden_irrigation_zone_04_water_used_last
             name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_04_water_used_last_scheduled
+            name: Zużycie podczas ostatniego podlewania (harmonogram)
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_04_water_used_last_scheduled
+            attribute: kiedy
+            name: Data ostatniego podlewania (harmonogram)
           - entity: sensor.garden_irrigation_zone_04_water_used_today
             name: Zużycie dziś
           - entity: sensor.garden_irrigation_zone_04_water_used_month
@@ -219,6 +245,12 @@ views:
             name: Wydajność (efektywna)
           - entity: sensor.garden_irrigation_zone_05_water_used_last
             name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_05_water_used_last_scheduled
+            name: Zużycie podczas ostatniego podlewania (harmonogram)
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_05_water_used_last_scheduled
+            attribute: kiedy
+            name: Data ostatniego podlewania (harmonogram)
           - entity: sensor.garden_irrigation_zone_05_water_used_today
             name: Zużycie dziś
           - entity: sensor.garden_irrigation_zone_05_water_used_month
@@ -255,6 +287,12 @@ views:
             name: Wydajność (efektywna)
           - entity: sensor.garden_irrigation_zone_06_water_used_last
             name: Zużycie podczas ostatniego podlewania
+          - entity: sensor.garden_irrigation_zone_06_water_used_last_scheduled
+            name: Zużycie podczas ostatniego podlewania (harmonogram)
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_06_water_used_last_scheduled
+            attribute: kiedy
+            name: Data ostatniego podlewania (harmonogram)
           - entity: sensor.garden_irrigation_zone_06_water_used_today
             name: Zużycie dziś
           - entity: sensor.garden_irrigation_zone_06_water_used_month
@@ -287,6 +325,8 @@ views:
           - entity: sensor.garden_irrigation_zone_01_recommended_watering
             name: Opad podczas pauzy (atrybut)
             attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: sensor.garden_irrigation_zone_01_growth_stage
+            name: Stadium wzrostu (dosiewka/nasadzenie)
           - entity: button.garden_irrigation_zone_01_approve_and_run
             name: Zatwierdź i uruchom
           - entity: button.garden_irrigation_zone_01_skip_today
@@ -304,6 +344,8 @@ views:
           - entity: sensor.garden_irrigation_zone_02_recommended_watering
             name: Opad podczas pauzy (atrybut)
             attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: sensor.garden_irrigation_zone_02_growth_stage
+            name: Stadium wzrostu (dosiewka/nasadzenie)
           - entity: button.garden_irrigation_zone_02_approve_and_run
             name: Zatwierdź i uruchom
           - entity: button.garden_irrigation_zone_02_skip_today
@@ -321,6 +363,8 @@ views:
           - entity: sensor.garden_irrigation_zone_03_recommended_watering
             name: Opad podczas pauzy (atrybut)
             attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: sensor.garden_irrigation_zone_03_growth_stage
+            name: Stadium wzrostu (dosiewka/nasadzenie)
           - entity: button.garden_irrigation_zone_03_approve_and_run
             name: Zatwierdź i uruchom
           - entity: button.garden_irrigation_zone_03_skip_today
@@ -338,6 +382,8 @@ views:
           - entity: sensor.garden_irrigation_zone_04_recommended_watering
             name: Opad podczas pauzy (atrybut)
             attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: sensor.garden_irrigation_zone_04_growth_stage
+            name: Stadium wzrostu (dosiewka/nasadzenie)
           - entity: button.garden_irrigation_zone_04_approve_and_run
             name: Zatwierdź i uruchom
           - entity: button.garden_irrigation_zone_04_skip_today
@@ -355,6 +401,8 @@ views:
           - entity: sensor.garden_irrigation_zone_05_recommended_watering
             name: Opad podczas pauzy (atrybut)
             attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: sensor.garden_irrigation_zone_05_growth_stage
+            name: Stadium wzrostu (dosiewka/nasadzenie)
           - entity: button.garden_irrigation_zone_05_approve_and_run
             name: Zatwierdź i uruchom
           - entity: button.garden_irrigation_zone_05_skip_today
@@ -372,10 +420,53 @@ views:
           - entity: sensor.garden_irrigation_zone_06_recommended_watering
             name: Opad podczas pauzy (atrybut)
             attribute: opad_podczas_biezacej_pauzy_mm
+          - entity: sensor.garden_irrigation_zone_06_growth_stage
+            name: Stadium wzrostu (dosiewka/nasadzenie)
           - entity: button.garden_irrigation_zone_06_approve_and_run
             name: Zatwierdź i uruchom
           - entity: button.garden_irrigation_zone_06_skip_today
             name: Pomiń dzisiaj
+
+      - type: button
+        name: Otwórz konfigurację integracji
+        icon: mdi:cog
+        tap_action:
+          action: navigate
+          navigation_path: /config/integrations/integration/garden_irrigation
+
+      - type: markdown
+        title: Dosiewka / nowe nasadzenie - jak uruchomić
+        content: >
+          **Najprościej przez konfigurację integracji** (od v1.17.2): przycisk
+          "Otwórz konfigurację integracji" powyżej -> na karcie integracji
+          kliknij **Konfiguruj** (ikona koła zębatego / trzy kropki) -> z menu
+          głównego wybierz **"Dosiewka / nowe nasadzenie"** -> zaznacz
+          przełącznik przy strefie i wybierz rośliny (tylko te już wcześniej
+          przypisane do tej strefy) -> **Zapisz**. Strefa od razu przechodzi na
+          stadium "Kiełkowanie", potem automatycznie "Młode rośliny", aż wróci
+          do standardu. Przełącznik zawsze pokazuje realny stan strefy -
+          wyłączenie go dla strefy z trwającą dosiewką **anuluje ją** i od razu
+          wraca do standardu. UWAGA: HA nie pozwala linkować bezpośrednio do
+          konkretnego kroku kreatora - przycisk otwiera tylko listę integracji,
+          "Konfiguruj" i wybór "Dosiewka / nowe nasadzenie" trzeba kliknąć
+          ręcznie za każdym razem.
+
+
+          **Alternatywnie** (np. w automatyzacjach) - usługi wywoływane przez
+          **Narzędzia deweloperskie -> Akcje**:
+
+
+          - `garden_irrigation.start_new_planting` - pola: `zone_id` (numer
+          strefy) i `plant_keys` (lista roślin z tych już przypisanych do tej
+          strefy)
+
+          - `garden_irrigation.cancel_new_planting` - pole: `zone_id` - ręczne,
+          natychmiastowe zakończenie stadium wzrostu (np. pomyłka przy
+          wyborze roślin)
+
+
+          Status widać na żywo w sensorze "Stadium wzrostu" powyżej, w każdej
+          karcie strefy.
 
   # ============================================================
   # ZAKŁADKA 4: INFO (żywe parametry stref + statyczny słownik)

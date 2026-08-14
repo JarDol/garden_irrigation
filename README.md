@@ -41,6 +41,10 @@ padającego w trakcie samego podlewania.
   podlewaniami zostaje na ten dzień pominięty), przy chłodnej pogodzie wyższy.
 - Liczy statystyki zużycia wody (dobowe/miesięczne, per strefa i łącznie) oraz zgłasza problemy
   sprzętowe (brakująca encja, zawór nie reaguje) przez wbudowany mechanizm HA Repairs.
+- Ma osobny, częstszy tryb podlewania dla świeżo wysianej trawy/nowych nasadzeń (dosiewka) -
+  automatycznie wraca do standardu po zakończeniu stadiów wzrostu.
+- Gwarantuje, że nigdy dwa zawory nie są otwarte jednocześnie (chyba że świadomie na to
+  zezwolisz) - niezależnie od tego, co konkretnie wyzwoliło dane podlewanie.
 
 ## Instalacja
 
@@ -555,6 +559,24 @@ pierwszej, integracja:
 Ten sam mechanizm weryfikacji działa też przy pojedynczym ręcznym uruchomieniu strefy
 (przycisk / usługa `run_zone`), nie tylko w sekwencji.
 
+## Kolejkowanie podlewania (blokada jednoczesnych zaworów)
+
+Domyślnie integracja gwarantuje, że **nigdy dwa zawory nie są otwarte jednocześnie** -
+niezależnie, czy zostały wyzwolone ręcznym zatwierdzeniem, `approve_all`, sekwencją przed
+wschodem, czy stadium wzrostu (dosiewka/nowe nasadzenie, patrz niżej). Każde otwarcie zaworu
+przechodzi przez wspólną blokadę (FIFO) - jeśli inna strefa akurat się podlewa, żądanie po
+prostu czeka w kolejce, zamiast otworzyć drugi zawór równolegle.
+
+Ma to znaczenie zwłaszcza dla stadiów wzrostu, które mogą podlewać kilka razy dziennie
+niezależnie od głównego harmonogramu - bez tej blokady mogłyby nachodzić na sekwencję przed
+wschodem albo na ręczne zatwierdzenie innej strefy i otwierać drugi zawór w tym samym czasie.
+
+Można to wyłączyć przełącznikiem `switch.garden_irrigation_allow_simultaneous_watering`
+("Zezwalaj na jednoczesne podlewanie stref") - wtedy wszystkie strefy mogą startować
+równolegle, tak jak dotychczas. Włączaj **tylko jeśli wiesz, że instalacja/ciśnienie wody
+faktycznie to udźwignie** - większość domowych instalacji nie utrzyma pełnego ciśnienia przy
+kilku otwartych zaworach naraz. Domyślnie wyłączony (bezpieczniejsza opcja).
+
 ## Minimalny odstęp między podlewaniami
 
 Sam model bilansu wodnego już naturalnie prowadzi do rzadszego, głębszego podlewania niż
@@ -597,6 +619,59 @@ kalibracji), bez żadnej dziennej korekty ani automatycznego obejścia minimalne
 Pole `dynamic_mad_enabled` w kreatorze konfiguracji ustawia tylko wartość **początkową** przy
 pierwszej instalacji - późniejsze zmiany realnie kontroluje ten przełącznik, nie kreator.
 
+## Dosiewka / nowe nasadzenie (stadia wzrostu)
+
+Świeżo wysiana trawa albo nowo posadzone rośliny potrzebują dużo częstszego, płytszego
+podlewania niż już ugruntowana roślinność w tej samej strefie - standardowy bilans wodny
+gleby (liczony na dorosłą roślinę) by to przegapił. Dla takich sytuacji każda roślina w
+katalogu integracji ma dodatkowo zdefiniowany **harmonogram stadiów wzrostu**:
+
+1. **Kiełkowanie** - najczęstsze, najkrótsze podlewania (typowo kilka razy dziennie przez
+   1-2 tygodnie, zależnie od rośliny).
+2. **Młode rośliny** - rzadziej, ale nadal częściej niż standard (typowo raz dziennie przez
+   kolejne 2-4 tygodnie).
+3. **Standard** - integracja automatycznie wraca do normalnego bilansu wodnego gleby.
+
+Przez cały czas trwania stadiów wzrostu strefa **pomija** normalny mechanizm decyzyjny oparty
+o deficyt wody (SMD) - podlewa wyłącznie wg częstotliwości zdefiniowanej dla bieżącego stadium,
+niezależnie od tego, jaki byłby aktualny deficyt. Nadal respektuje globalną pauzę
+(`switch.garden_irrigation_irrigation_paused`) i ryzyko przymrozku, ale celowo **NIE** deszcz,
+prognozę opadu ani wiatr - świeżo wysiane rośliny potrzebują regularności bardziej niż
+oszczędności wody na tym etapie.
+
+### Jak uruchomić
+
+**Z poziomu GUI** (od wersji 1.17.2) - dostępne wyłącznie w **Opcjach** już zainstalowanej
+integracji (nie w kreatorze pierwszej instalacji, bo krok wymaga działającego koordynatora):
+Ustawienia → Urządzenia i usługi → Garden - Smart Irrigation → **Konfiguruj** → z menu
+głównego wybierz **"Dosiewka / nowe nasadzenie"**. Dla każdej skonfigurowanej strefy widoczny
+jest przełącznik (odzwierciedla, czy strefa ma akurat aktywne stadium wzrostu) i lista roślin
+do wyboru, ograniczona do roślin **już przypisanych** do tej strefy w konfiguracji. Włączenie
+przełącznika i wybór roślin + zapis **rozpoczyna** dosiewkę; wyłączenie przełącznika dla strefy
+z już trwającym stadium **anuluje** je i od razu wraca do standardu.
+
+**Usługami** (np. z automatyzacji, albo Narzędzia deweloperskie → Akcje):
+
+| Usługa | Parametry | Działanie |
+|---|---|---|
+| `garden_irrigation.start_new_planting` | `zone_id`, `plant_keys` (lista roślin już przypisanych do strefy) | Rozpoczyna stadium wzrostu dla strefy |
+| `garden_irrigation.cancel_new_planting` | `zone_id` | Natychmiast kończy stadium wzrostu, wraca do standardu |
+
+### Kilka roślin naraz w jednej strefie
+
+Strefa ma jeden wspólny harmonogram stadiów, nie osobny per roślinę. Jeśli wybierzesz kilka
+roślin jednocześnie (np. dosiewasz trawę i sadzisz obok nowe krzewy), integracja wybiera
+**"najsłabszą"** z nich - tę o najniższym progu MAD (ten sam wskaźnik wrażliwości, którego
+integracja już używa przy mieszanych nasadzeniach w normalnym trybie) - i to JEJ harmonogram
+(czasy trwania i częstotliwości obu stadiów) rządzi całym cyklem strefy od początku do końca.
+
+### Status na żywo
+
+`sensor.<nazwa>_stadium_wzrostu` - wartość to bieżące stadium ("Kiełkowanie" / "Młode rośliny"
+/ "standard"), atrybuty: czy aktywne, roślina wiodąca (ta, która wyznaczyła harmonogram),
+wybrane rośliny, kiedy rozpoczęte, koniec bieżącego stadium, kiedy wraca do standardu, kolejne
+zaplanowane podlewanie, ostatnie podlewanie.
+
 ## Ochrona przed wiatrem i przymrozkiem
 
 - **Wiatr**: strefy oznaczone jako `wind_sensitive` (typowo zraszacze - drift, nierówne
@@ -627,6 +702,16 @@ stycznia. **Zaokrąglane do 0,1 L** (nie do 0,01 L) - to realna granica precyzji
 licznika wody w Home Assistant (`device_class: water`), który sam raportuje objętość w m³ z
 ograniczoną liczbą miejsc po przecinku; wyświetlanie drugiego miejsca po przecinku sugerowałoby
 precyzję, której odczyt fizycznie nie ma.
+
+**Ostatnie podlewanie - z harmonogramu vs. dowolne.** Sensor "zużycie wody podczas ostatniego
+podlewania" nadpisuje się przy KAŻDYM otwarciu zaworu, w tym krótkim, ręcznym teście usługą
+`run_zone` (np. kilka sekund, żeby sprawdzić, czy zawór działa) - co czyni go bezużytecznym do
+sprawdzenia, kiedy strefa faktycznie ostatnio dostała pełne podlewanie wg harmonogramu.
+Osobny sensor `sensor.<nazwa>_zuzycie_wody_podczas_ostatniego_podlewania_z_harmonogramu`
+zapisuje się WYŁĄCZNIE przy podlewaniach pochodzących z harmonogramu integracji (zatwierdzenie/
+`approve_all`, sekwencja przed wschodem, stadia wzrostu) - ręczne testy przez `run_zone` go nie
+dotykają, więc zawsze pokazuje faktyczną historię tego, kiedy strefa ostatnio była podlana
+zgodnie z planem, niezależnie od tego, ile razy w międzyczasie ktoś ręcznie sprawdzał zawór.
 
 ## Zgłoszenia w Home Assistant Repairs
 
@@ -749,15 +834,23 @@ momencie dnia.
   przeciwnym razie ręczna), z atrybutami: wartość ręczna, wyuczona, liczba próbek, ostatni pomiar
 - per strefa `sensor.<nazwa>_zuzycie_wody_dzis` / `_zuzycie_wody_w_tym_miesiacu` / `_zuzycie_wody_w_tym_roku` (litry)
 - per strefa `sensor.<nazwa>_zuzycie_wody_podczas_ostatniego_podlewania` (litry) - tylko ostatnie,
-  pojedyncze podlanie (nie suma), z atrybutem `kiedy`
+  pojedyncze podlanie (nie suma), z atrybutem `kiedy` - nadpisywane KAŻDYM podlewaniem, w tym
+  ręcznym testem `run_zone` (patrz sekcja "Statystyki zużycia wody")
+- per strefa `sensor.<nazwa>_zuzycie_wody_podczas_ostatniego_podlewania_z_harmonogramu` (litry) -
+  to samo, ale WYŁĄCZNIE dla podlewań z harmonogramu integracji (zatwierdzenie/`approve_all`,
+  sekwencja przed wschodem, stadia wzrostu) - ręczne testy `run_zone` go nie nadpisują
 - `sensor.laczne_zuzycie_wody_dzis` / `_w_tym_miesiacu` / `_w_tym_roku` (litry, cały ogród)
 - `sensor.garden_irrigation_total_water_last` - suma ostatniego pojedynczego podlewania KAŻDEJ
   strefy z osobna (niekoniecznie ten sam dzień dla wszystkich), z rozbiciem per strefa w atrybutach
+- per strefa `sensor.<nazwa>_stadium_wzrostu` - stan dosiewki/nowego nasadzenia (patrz sekcja
+  "Dosiewka / nowe nasadzenie (stadia wzrostu)")
 
 **Switch:**
 - `switch.garden_irrigation_irrigation_paused` - globalna pauza (tryb urlopowy), patrz wyżej
 - `switch.garden_irrigation_dynamic_mad_enabled` - włącza/wyłącza dynamiczną korektę MAD wg
   FAO-56 (patrz sekcja "Minimalny odstęp między podlewaniami")
+- `switch.garden_irrigation_allow_simultaneous_watering` - zezwala strefom podlewać równolegle
+  zamiast czekać w kolejce (patrz sekcja "Kolejkowanie podlewania")
 
 **Binary sensory:**
 - per strefa `binary_sensor.<nazwa>_wstrzymane_z_powodu_deszczu` - włączony, gdy TA strefa
@@ -779,6 +872,8 @@ momencie dnia.
 | `garden_irrigation.skip_zone` | `zone_id` | Anuluje dzisiejszą rekomendację bez podlewania |
 | `garden_irrigation.run_zone` | `zone_id`, `minutes` | Uruchamia strefę ręcznie na zadany czas, niezależnie od rekomendacji |
 | `garden_irrigation.run_sequence_before_sunrise` | - | Buduje i planuje sekwencję wszystkich zatwierdzonych stref, licząc start wstecz od wschodu |
+| `garden_irrigation.start_new_planting` | `zone_id`, `plant_keys` | Rozpoczyna dosiewkę/nowe nasadzenie dla strefy - patrz sekcja "Dosiewka / nowe nasadzenie" |
+| `garden_irrigation.cancel_new_planting` | `zone_id` | Kończy dosiewkę/nowe nasadzenie przed czasem, wraca do standardu |
 
 ## Kalibracja
 
