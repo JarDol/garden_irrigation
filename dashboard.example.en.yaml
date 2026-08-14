@@ -608,30 +608,30 @@ views:
           | Fruit trees | 14 / 1x / 10 min | 45 / 1x / 15 min |
           | Potted plants (general) | 7 / 2x / 3 min | 14 / 1x / 5 min |
 
-          **What time of day does this happen?** The first watering starts the
-          moment the growth stage is started manually (switch / the
-          `start_new_planting` service). Every following watering happens
-          exactly every (24h / waterings per day) after the previous one - e.g.
-          at "2x per day" that's roughly every 12h. That is an interval from
-          the start moment, **not** a fixed time of day and not tied to
-          sunrise like the main, standard schedule - if the growth stage was
-          started at 2 PM, the second watering (at 2x/day) lands around 2 AM,
-          and clock times keep drifting further on later days as delays stack
-          up (rain, frost, another zone still running). The exact time of the
-          next forced watering for each zone is visible live in the
-          `kolejne_podlewanie` attribute of
+          **What time of day does this happen, and how much water?** The FIRST
+          watering EVERY day starts at the same time as the main sequence
+          (sunrise or a fixed clock time - whatever is set in "Start mode", the
+          "Operating mode and watering start" card in the integration's
+          configuration). Its dose covers the deficit accrued since the
+          previous day - but never more than the stage's normal, short duration
+          from the table above would deliver, so it never dumps one large dose
+          onto shallow, germinating roots (e.g. if the growth stage was started
+          on a zone that already had a sizeable deficit). If the deficit is
+          zero (e.g. rain covered it), the full, short "shot" still runs anyway
+          - that keeps the surface moist for germinating seeds, independent of
+          the deeper water balance. Later waterings on the same day (at
+          frequency >1x/day, e.g. 2x during lawn germination) are unchanged:
+          fixed, short, spaced (24h / frequency) apart from the previous one -
+          e.g. +12h at 2x/day - independent of the deficit, purely to keep the
+          surface consistently moist. Exception: the day the growth stage is
+          STARTED - the first watering runs immediately after starting
+          (switch/`start_new_planting` service), without waiting for
+          sunrise/the set time; syncing with the main sequence kicks in from
+          the SECOND day onward. The amount delivered and the exact time of the
+          next watering are visible live in the `ostatnie_podlewanie_mm` and
+          `kolejne_podlewanie` attributes of
           `sensor.garden_irrigation_<zone>_growth_stage` (the "Growth stage"
           card on the Zones tab).
-
-          Want a predictable, fixed time for the MAIN schedule (independent of
-          growth stages)? As of this version, the start mode (Configure ->
-          "Operating mode and watering start") lets you pick, in addition to
-          the sunrise-relative modes, a start at a **fixed clock time**
-          ("Start exactly at the set time" / "Finish the last zone at the set
-          time") - that only affects when the whole, standard zone sequence
-          starts though, not the repeated waterings during an active growth
-          stage described above, which still need to repeat several times a
-          day regardless.
 
       - type: markdown
         title: Reference - default application rate by irrigation type

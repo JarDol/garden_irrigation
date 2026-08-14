@@ -608,29 +608,28 @@ views:
           | Drzewa owocowe | 14 / 1x / 10 min | 45 / 1x / 15 min |
           | Rośliny w donicach (ogólnie) | 7 / 2x / 3 min | 14 / 1x / 5 min |
 
-          **O której godzinie to się dzieje?** Pierwsze podlewanie startuje w
-          momencie ręcznego uruchomienia dosiewki (przełącznik/usługa
-          `start_new_planting`). Każde kolejne odbywa się dokładnie co (24h /
-          liczba podlewań dziennie) od poprzedniego - np. przy "2x dziennie" to
-          co ok. 12h. To odstęp od momentu startu, a **NIE** stała pora dnia
-          czy godzina powiązana ze wschodem słońca jak przy głównym,
-          standardowym podlewaniu - jeśli dosiewkę uruchomiono np. o 14:00,
-          drugie podlewanie (przy 2x dziennie) wypadnie ok. 2:00 w nocy, a
-          trzeciego dnia godziny "popłyną" jeszcze dalej wraz z ewentualnymi
-          opóźnieniami (deszcz, mróz, inna strefa w trakcie pracy). Dokładny
-          czas najbliższego wymuszonego podlewania każdej strefy widać na
-          żywo w atrybucie `kolejne_podlewanie` sensora
+          **O której godzinie to się dzieje i ile wody leci?** Pierwsze podlewanie
+          KAŻDEGO dnia startuje o TEJ SAMEJ porze co główna sekwencja (wschód
+          słońca albo stała godzina - to co ustawione w "Tryb ustalania startu",
+          karta "Tryb pracy i start podlewania" w konfiguracji integracji). Jego
+          dawka pokrywa deficyt wody narosły od poprzedniego dnia - ale nigdy
+          więcej niż zwykły, krótki czas etapu z tabeli wyżej by dostarczył, żeby
+          nie zalać jednorazowo płytkich, kiełkujących korzeni (np. gdy dosiewkę
+          uruchomiono na strefie z już narosłym deficytem). Jeśli deficyt jest
+          zerowy (np. pokrył go deszcz), i tak leci pełny, krótki "strzał" - żeby
+          utrzymać wilgoć na powierzchni dla kiełkujących nasion, niezależnie od
+          stanu głębszego bilansu. Kolejne podlewania tego samego dnia (przy
+          częstotliwości >1x/dzień, np. 2x w kiełkowaniu trawnika) są BEZ zmian -
+          stałe, krótkie, odsunięte o (24h / częstotliwość) od poprzedniego (np.
+          +12h przy 2x dziennie) - nie zależą od deficytu, tylko utrzymują
+          regularną wilgoć. Wyjątek: dzień STARTU dosiewki - pierwsze podlewanie
+          leci od razu po uruchomieniu (przełącznik/usługa `start_new_planting`),
+          bez czekania na wschód/godzinę; synchronizacja z główną sekwencją
+          zaczyna działać od DRUGIEGO dnia. Dostarczoną ilość i dokładny czas
+          kolejnego podlewania widać na żywo w atrybutach `ostatnie_podlewanie_mm`
+          i `kolejne_podlewanie` sensora
           `sensor.garden_irrigation_<strefa>_growth_stage` (karta "Stadium
           wzrostu" w zakładce Strefy).
-
-          Chcesz przewidywalną, stałą porę dla GŁÓWNEGO podlewania (niezależną
-          od stadium wzrostu)? Od tej wersji tryb startu (Konfiguruj -> "Tryb
-          pracy i start podlewania") pozwala wybrać oprócz trybów względem
-          wschodu słońca również start o **wskazanej, stałej godzinie**
-          ("Start dokładnie o wskazanej godzinie" / "Zakończ ostatnią strefę o
-          wskazanej godzinie") - to jednak dotyczy startu CAŁEJ, standardowej
-          sekwencji stref, a nie kolejnych podlewań w trakcie dosiewki opisanych
-          wyżej, które i tak muszą powtarzać się kilka razy dziennie.
 
       - type: markdown
         title: Słownik - domyślna wydajność wg typu nawadniania

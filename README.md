@@ -641,11 +641,36 @@ katalogu integracji ma dodatkowo zdefiniowany **harmonogram stadiów wzrostu**:
 3. **Standard** - integracja automatycznie wraca do normalnego bilansu wodnego gleby.
 
 Przez cały czas trwania stadiów wzrostu strefa **pomija** normalny mechanizm decyzyjny oparty
-o deficyt wody (SMD) - podlewa wyłącznie wg częstotliwości zdefiniowanej dla bieżącego stadium,
-niezależnie od tego, jaki byłby aktualny deficyt. Nadal respektuje globalną pauzę
-(`switch.garden_irrigation_irrigation_paused`) i ryzyko przymrozku, ale celowo **NIE** deszcz,
-prognozę opadu ani wiatr - świeżo wysiane rośliny potrzebują regularności bardziej niż
-oszczędności wody na tym etapie.
+o deficyt wody (SMD) - podlewa wyłącznie wg częstotliwości zdefiniowanej dla bieżącego stadium.
+Nadal respektuje globalną pauzę (`switch.garden_irrigation_irrigation_paused`) i ryzyko
+przymrozku, ale celowo **NIE** deszcz, prognozę opadu ani wiatr - świeżo wysiane rośliny
+potrzebują regularności bardziej niż oszczędności wody na tym etapie.
+
+### Kiedy i ile - pierwsze podlewanie dnia kontra kolejne
+
+Deficyt wody (SMD) danej strefy jest liczony w tle **niezależnie** od tego, czy trwa dosiewka -
+tylko normalny mechanizm decyzyjny na nim oparty jest zawieszony (patrz wyżej). Harmonogram
+dosiewki to wykorzystuje, żeby PIERWSZE podlewanie każdego dnia różniło się od kolejnych:
+
+- **Pierwsze podlewanie dnia** startuje o tej samej porze co główna sekwencja (wschód albo
+  stała godzina - to co ustawione w polu "Tryb ustalania startu", patrz sekcja "Kiedy dokładnie
+  startuje podlewanie" wyżej). Jego dawka **pokrywa deficyt narosły od poprzedniego dnia** -
+  ale nigdy więcej niż zwykły, krótki `runtime_min` etapu by dostarczył, żeby nie zalać
+  jednorazowo płytkich, kiełkujących korzeni dużą dawką (np. gdy dosiewkę uruchomiono na
+  strefie, która długo nie była podlewana i ma już spory deficyt). Jeśli deficyt jest zerowy
+  (np. pokrył go deszcz), i tak leci pełny, krótki `runtime_min` - to sam "strzał" utrzymujący
+  wilgoć na powierzchni dla kiełkujących nasion, niezależny od stanu głębszego bilansu.
+- **Kolejne podlewania tego samego dnia** (przy częstotliwości >1x/dzień, np. 2x w kiełkowaniu
+  trawnika) są stałe, krótkie (ten sam `runtime_min`) i odsunięte o (24h / częstotliwość) od
+  poprzedniego - np. przy 2x/dzień to +12h. Nie zależą od deficytu - ich jedyna rola to
+  utrzymanie regularnej wilgoci na powierzchni.
+- **Dzień startu dosiewki** jest wyjątkiem: pierwsze podlewanie leci od razu po uruchomieniu
+  (usługa/przełącznik), bez czekania na najbliższy wschód/godzinę - świeżo wysiane nasiona
+  potrzebują wilgoci natychmiast. Kotwiczenie do pory głównej sekwencji zaczyna obowiązywać od
+  **drugiego** dnia.
+
+Dostarczoną w ten sposób ilość widać na żywo w atrybucie `ostatnie_podlewanie_mm` sensora
+`sensor.<nazwa>_stadium_wzrostu`.
 
 ### Jak uruchomić
 

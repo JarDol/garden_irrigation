@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import logging
 import math
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time as dt_time, timedelta
 from typing import Any
 
 try:
@@ -315,6 +315,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                     "growth_stage_selected_keys": None, "growth_stage_started": None,
                     "growth_stage_stage_until": None, "growth_stage_cycle_until": None,
                     "growth_stage_next_due": None, "growth_stage_last_watered": None,
+                    "growth_stage_daily_anchor_date": None, "growth_stage_last_watered_mm": None,
                     "current_run_source": None,
                     "water_last_scheduled_watering_l": None, "last_scheduled_watering_at": None,
                 }
@@ -548,23 +549,29 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             return today_sunrise
         return self._compute_sunrise(now.date() + timedelta(days=1))
 
+    def _clock_time_on(self, target_date: date) -> datetime:
+        """Skonfigurowana stała godzina startu (CONF_START_CLOCK_TIME) zrzutowana
+        na konkretny dzień - niezależnie od tego, czy to dziś, jutro czy dowolny
+        inny dzień."""
+        time_str = self.cfg.get(CONF_START_CLOCK_TIME, DEFAULT_START_CLOCK_TIME)
+        try:
+            hh, mm, *rest = str(time_str).split(":")
+            hour, minute, second = int(hh), int(mm), int(rest[0]) if rest else 0
+        except (ValueError, TypeError):
+            hour = int(DEFAULT_START_CLOCK_TIME[:2])
+            minute = int(DEFAULT_START_CLOCK_TIME[3:5])
+            second = 0
+        return datetime.combine(target_date, dt_time(hour, minute, second), tzinfo=dt_util.now().tzinfo)
+
     def _next_clock_time(self) -> datetime:
         """Najbliższe nadchodzące wystąpienie stałej godziny startu skonfigurowanej
         dla trybów '_at_clock' - dziś, jeśli jeszcze nie minęła, w przeciwnym razie
         jutro. W odróżnieniu od wschodu słońca zawsze policzalne (nie zależy od
         biblioteki astral ani lokalizacji)."""
         now = dt_util.now()
-        time_str = self.cfg.get(CONF_START_CLOCK_TIME, DEFAULT_START_CLOCK_TIME)
-        try:
-            hh, mm, *rest = str(time_str).split(":")
-            target = now.replace(hour=int(hh), minute=int(mm), second=int(rest[0]) if rest else 0, microsecond=0)
-        except (ValueError, TypeError):
-            target = now.replace(
-                hour=int(DEFAULT_START_CLOCK_TIME[:2]), minute=int(DEFAULT_START_CLOCK_TIME[3:5]),
-                second=0, microsecond=0,
-            )
+        target = self._clock_time_on(now.date())
         if target <= now:
-            target += timedelta(days=1)
+            target = self._clock_time_on(now.date() + timedelta(days=1))
         return target
 
     def _next_start_anchor(self) -> datetime | None:
@@ -575,6 +582,17 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         if mode in (START_MODE_AT_CLOCK, START_MODE_FINISH_AT_CLOCK):
             return self._next_clock_time()
         return self._next_sunrise()
+
+    def _today_start_anchor(self) -> datetime | None:
+        """Punkt odniesienia (wschód słońca albo stała godzina wg CONF_START_MODE)
+        dla BIEŻĄCEGO dnia, niezależnie od tego, czy już minął - w odróżnieniu od
+        _next_start_anchor, które przeskakuje na jutro, jeśli już minął. Używane
+        do synchronizacji PIERWSZEGO, dziennego podlewania dosiewki/nowego
+        nasadzenia z porą głównej sekwencji (patrz _async_process_growth_stages)."""
+        mode = self.cfg.get(CONF_START_MODE, DEFAULT_START_MODE)
+        if mode in (START_MODE_AT_CLOCK, START_MODE_FINISH_AT_CLOCK):
+            return self._clock_time_on(dt_util.now().date())
+        return self._compute_sunrise(dt_util.now().date())
 
     def _garden_elevation(self) -> float:
         """Wysokość n.p.m. - wprost z ogólnej konfiguracji lokalizacji HA."""
@@ -744,6 +762,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             zstate.setdefault("growth_stage_cycle_until", None)
             zstate.setdefault("growth_stage_next_due", None)
             zstate.setdefault("growth_stage_last_watered", None)
+            zstate.setdefault("growth_stage_daily_anchor_date", None)
+            zstate.setdefault("growth_stage_last_watered_mm", None)
             zstate.setdefault("current_run_source", None)
             zstate.setdefault("water_last_scheduled_watering_l", None)
             zstate.setdefault("last_scheduled_watering_at", None)
@@ -1597,10 +1617,22 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                     depth_applied = liters_used / zone["area_m2"] if zone["area_m2"] else None
                     measured_from_flow_sensor = depth_applied is not None
             if depth_applied is None:
-                # brak przepływomierza / błędny odczyt - licz z czasu pracy i efektywnej
-                # (wyuczonej, jeśli już jest, w przeciwnym razie ręcznej) wydajności
-                # (przybliżenie - nie znamy dokładnie ile trwało włączenie, więc korzystamy z pending_min)
-                depth_applied = self._effective_rate_mmh(zid, zone) * (zstate.get("pending_min", 0) / 60)
+                # brak przepływomierza / błędny odczyt - licz z RZECZYWISTEGO czasu,
+                # przez jaki zawór był otwarty (flow_start_time, zapisywane przy
+                # KAŻDYM otwarciu, niezależnie od obecności przepływomierza) i
+                # efektywnej (wyuczonej, jeśli już jest, w przeciwnym razie ręcznej)
+                # wydajności. Celowo NIE pending_min - to pole bywa w międzyczasie
+                # wyzerowane przez _compute_zone_status (np. dla stref w stadium
+                # wzrostu, gdzie jest to zamierzone, żeby nie dublować standardowego
+                # podlewania) i nie odzwierciedlałoby faktycznego czasu pracy zaworu.
+                start_time_str = self._data.get("flow_start_time", {}).get(str(zid))
+                elapsed_min = None
+                if start_time_str:
+                    start_time = dt_util.parse_datetime(start_time_str)
+                    if start_time:
+                        elapsed_min = (dt_util.utcnow() - start_time).total_seconds() / 60
+                minutes_for_depth = elapsed_min if elapsed_min is not None else zstate.get("pending_min", 0)
+                depth_applied = self._effective_rate_mmh(zid, zone) * (minutes_for_depth / 60)
 
             # samo-kalibracja rzeczywistej wydajności strefy - TYLKO gdy mamy
             # prawdziwy pomiar z przepływomierza (nie szacunek), zawór był
@@ -2240,6 +2272,13 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         zstate["growth_stage_cycle_until"] = cycle_until.isoformat()
         zstate["growth_stage_next_due"] = now.isoformat()
         zstate["growth_stage_last_watered"] = None
+        zstate["growth_stage_last_watered_mm"] = None
+        # dzień startu celowo NIE korzysta z kotwiczenia do pory głównej sekwencji
+        # (patrz _async_process_growth_stages) - świeżo wysiane/posadzone rośliny
+        # mają dostać wilgoć od razu, a nie czekać do najbliższego wschodu/stałej
+        # godziny, stąd next_due=teraz wyżej. Kotwiczenie (i podlewanie wg
+        # deficytu) zaczyna działać od NASTĘPNEGO dnia.
+        zstate["growth_stage_daily_anchor_date"] = now.date().isoformat()
         zstate["pending_mm"] = 0.0
         zstate["pending_min"] = 0
         zstate["status"] = ZONE_STATUS_IDLE
@@ -2280,21 +2319,40 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         zstate["growth_stage_stage_until"] = None
         zstate["growth_stage_cycle_until"] = None
         zstate["growth_stage_next_due"] = None
+        zstate["growth_stage_daily_anchor_date"] = None
         self._compute_zone_status(zid)
 
     async def _async_process_growth_stages(self) -> None:
         """Wywoływane co cykl głównej aktualizacji (co ok. CONF_UPDATE_INTERVAL
         minut). Dla każdej strefy w aktywnym stadium wzrostu: sprawdza, czy
         czas przejść do kolejnego stadium (lub wrócić do standardu), i czy
-        minął odstęp do kolejnego, wymuszonego podlewania wg częstotliwości
-        zdefiniowanej dla bieżącego stadium rośliny wiodącej. Faktyczne
-        uruchomienie idzie przez _async_run_zone_serialized - tę samą wspólną
-        bramkę 'jedna strefa naraz', co zatwierdzenie ręczne i usługa run_zone -
-        więc dwie strefy w stadium wzrostu (albo strefa w stadium wzrostu i
-        strefa uruchomiona ręcznie w tym samym momencie) nigdy nie otworzą
-        zaworów jednocześnie, chyba że użytkownik włączył przełącznik
-        'zezwalaj na jednoczesne podlewanie'."""
+        pora na kolejne, wymuszone podlewanie wg częstotliwości zdefiniowanej
+        dla bieżącego stadium rośliny wiodącej. Faktyczne uruchomienie idzie
+        przez _async_run_zone_serialized - tę samą wspólną bramkę 'jedna strefa
+        naraz', co zatwierdzenie ręczne i usługa run_zone - więc dwie strefy w
+        stadium wzrostu (albo strefa w stadium wzrostu i strefa uruchomiona
+        ręcznie w tym samym momencie) nigdy nie otworzą zaworów jednocześnie,
+        chyba że użytkownik włączył przełącznik 'zezwalaj na jednoczesne
+        podlewanie'.
+
+        PIERWSZE podlewanie każdego dnia jest inne od kolejnych: startuje o tej
+        samej porze co główna sekwencja (wschód/stała godzina wg CONF_START_MODE
+        - patrz _today_start_anchor), a jego dawka POKRYWA DEFICYT (smd)
+        narosły od poprzedniego dnia zamiast lecieć na sztywno przez cały
+        `runtime_min` etapu - ale nigdy więcej niż ten `runtime_min` by
+        dostarczył (żeby nie zalać płytkich, kiełkujących korzeni jednorazowo
+        dużą dawką, gdyby np. dosiewkę uruchomiono na strefie z już narosłym
+        deficytem). Gdy deficyt jest zerowy (np. pokrył go deszcz), i tak leci
+        pełny `runtime_min` - świeżo wysiane nasiona potrzebują regularnej
+        wilgoci na powierzchni niezależnie od stanu głębszego bilansu wodnego.
+        KOLEJNE podlewania tego samego dnia (przy częstotliwości >1x/dzień) są
+        BEZ zmian względem poprzedniej wersji - stały, krótki `runtime_min`,
+        odsunięty o (24h / częstotliwość) od poprzedniego, niezależnie od
+        deficytu. Dzień startu dosiewki (patrz async_start_new_planting) celowo
+        pomija to kotwiczenie - pierwsze podlewanie leci od razu, a kotwiczenie
+        zaczyna obowiązywać od drugiego dnia."""
         now = dt_util.now()
+        today_str = now.date().isoformat()
         due: list[tuple[int, int]] = []
         for zid_str, zstate in list(self._data["zones"].items()):
             stage = zstate.get("growth_stage")
@@ -2330,9 +2388,21 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 self._end_growth_stage(zid, zstate)
                 continue
 
-            next_due = dt_util.parse_datetime(zstate.get("growth_stage_next_due") or "")
-            if not next_due or now < next_due:
-                continue
+            frequency = max(1, int(stage_cfg.get("frequency_per_day", 1)))
+            runtime_min = int(stage_cfg.get("runtime_min", 5))
+
+            # dzisiejsze, pierwsze (kotwiczone do wschodu/stałej godziny) podlewanie
+            # jeszcze się nie odbyło - inna bramka czasowa niż zwykłe, stałe "strzały"
+            is_daily_anchor_pending = zstate.get("growth_stage_daily_anchor_date") != today_str
+            if is_daily_anchor_pending:
+                anchor_dt = self._today_start_anchor()
+                if anchor_dt is None or now < anchor_dt:
+                    continue
+            else:
+                next_due = dt_util.parse_datetime(zstate.get("growth_stage_next_due") or "")
+                if not next_due or now < next_due:
+                    continue
+
             if self._is_paused():
                 continue
             frost_risk, _ = self._frost_risk()
@@ -2341,19 +2411,35 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             if zstate.get("status") == ZONE_STATUS_RUNNING:
                 continue
 
-            frequency = max(1, int(stage_cfg.get("frequency_per_day", 1)))
-            runtime_min = int(stage_cfg.get("runtime_min", 5))
-            _LOGGER.info(
-                "Strefa %s: podlewanie stadium '%s' (roślina wiodąca '%s') - %s min",
-                zid, GROWTH_STAGE_LABELS.get(stage, stage), zstate.get("growth_stage_plant_label"), runtime_min,
-            )
-            due.append((zid, runtime_min))
+            if is_daily_anchor_pending:
+                cap_mm = self._effective_rate_mmh(zid, zone) * (runtime_min / 60)
+                smd = zstate.get("smd", 0.0)
+                target_mm = min(smd, cap_mm) if smd > 0 else cap_mm
+                watered_min = max(1, min(runtime_min, math.ceil((target_mm / self._effective_rate_mmh(zid, zone)) * 60)))
+                _LOGGER.info(
+                    "Strefa %s: pierwsze dzisiejsze podlewanie dosiewki (stadium '%s', roślina '%s') "
+                    "- cel %.1f mm (deficyt %.1f mm, limit %.1f mm), ok. %s min",
+                    zid, GROWTH_STAGE_LABELS.get(stage, stage), zstate.get("growth_stage_plant_label"),
+                    target_mm, smd, cap_mm, watered_min,
+                )
+                zstate["growth_stage_daily_anchor_date"] = today_str
+            else:
+                watered_min = runtime_min
+                _LOGGER.info(
+                    "Strefa %s: podlewanie stadium '%s' (roślina wiodąca '%s') - %s min",
+                    zid, GROWTH_STAGE_LABELS.get(stage, stage), zstate.get("growth_stage_plant_label"), watered_min,
+                )
+
+            due.append((zid, watered_min))
             # next_due ustawiany OD RAZU (nie po faktycznym uruchomieniu) - to on
             # jest jedynym zabezpieczeniem przed powtórnym zakolejkowaniem tej
             # samej strefy w kolejnym cyklu, zanim ta jeszcze ruszy (np. czeka w
             # bramce na inną strefę)
             zstate["growth_stage_next_due"] = (now + timedelta(hours=24 / frequency)).isoformat()
             zstate["growth_stage_last_watered"] = now.isoformat()
+            zstate["growth_stage_last_watered_mm"] = round(
+                self._effective_rate_mmh(zid, zone) * (watered_min / 60), 1
+            )
 
         if not due:
             return

@@ -175,6 +175,7 @@ class ZoneGrowthStageSensor(CoordinatorEntity, SensorEntity):
             "powrot_do_standardu": zstate.get("growth_stage_cycle_until"),
             "kolejne_podlewanie": zstate.get("growth_stage_next_due"),
             "ostatnie_podlewanie": zstate.get("growth_stage_last_watered"),
+            "ostatnie_podlewanie_mm": zstate.get("growth_stage_last_watered_mm"),
         }
 
 

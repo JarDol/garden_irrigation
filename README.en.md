@@ -637,11 +637,37 @@ integration's catalog also has a **growth-stage schedule** defined:
 3. **Standard** - the integration automatically returns to the normal soil-water balance.
 
 For the whole duration of the growth stages, the zone **bypasses** the normal soil-moisture-
-deficit (SMD) decision logic - it waters purely on the frequency defined for the current stage,
-regardless of what the actual deficit would be. It still respects the global pause
-(`switch.garden_irrigation_irrigation_paused`) and frost risk, but deliberately **not** rain,
-the rain forecast, or wind - freshly planted vegetation needs regularity more than water
-savings at this stage.
+deficit (SMD) decision logic - it waters purely on the frequency defined for the current stage.
+It still respects the global pause (`switch.garden_irrigation_irrigation_paused`) and frost
+risk, but deliberately **not** rain, the rain forecast, or wind - freshly planted vegetation
+needs regularity more than water savings at this stage.
+
+### When and how much - the first watering of the day vs. the rest
+
+A zone's water deficit (SMD) keeps being tracked in the background **regardless** of whether a
+growth stage is active - only the normal decision logic based on it is suspended (see above).
+The growth-stage schedule uses that to make the FIRST watering of each day different from the
+rest:
+
+- **The first watering of the day** starts at the same time as the main sequence (sunrise or a
+  fixed clock time - whatever is set in "Start mode", see "When exactly does watering start"
+  above). Its dose **covers the deficit accrued since the previous day** - but never more than
+  the stage's normal, short `runtime_min` would deliver, so it never dumps one large dose onto
+  shallow, germinating roots (e.g. if a growth stage was started on a zone that hadn't been
+  watered in a while and already had a sizeable deficit). If the deficit is zero (e.g. rain
+  covered it), the full, short `runtime_min` still runs anyway - that's just the "shot" that
+  keeps the surface moist for germinating seeds, independent of the deeper water balance.
+- **Later waterings on the same day** (at frequency >1x/day, e.g. 2x during lawn germination)
+  are unchanged: fixed, short (the same `runtime_min`), spaced (24h / frequency) apart from the
+  previous one - e.g. +12h at 2x/day. They don't depend on the deficit - their only job is
+  keeping the surface consistently moist.
+- **The day the growth stage is started** is an exception: the first watering runs immediately
+  after starting (service/toggle), without waiting for the next sunrise/clock time - freshly
+  sown seeds need moisture right away. Syncing to the main sequence's time kicks in starting
+  from the **second** day.
+
+The amount delivered this way is visible live in the `ostatnie_podlewanie_mm` attribute of
+`sensor.<zone>_growth_stage`.
 
 ### How to start it
 
