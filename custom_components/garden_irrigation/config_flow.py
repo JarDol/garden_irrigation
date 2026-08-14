@@ -14,7 +14,7 @@ _GardenFlowMixin poniżej.
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import voluptuous as vol
 
@@ -447,12 +447,18 @@ def _suggested_rate_mmh(prefix: str, defaults: dict[str, Any], learned_rate: flo
     return None
 
 
-def _nasadzenia_schema(configured_zones: list[int], merged: dict[str, Any]) -> dict:
+def _nasadzenia_schema(
+    configured_zones: list[int],
+    merged: dict[str, Any],
+    state_fn: Callable[[int], tuple[bool, list[str]]],
+) -> dict:
     """Krok 'Dosiewka / nowe nasadzenie' - dla każdej JUŻ SKONFIGUROWANEJ
-    strefy (ma przypisany zawór) dwa pola: przełącznik (domyślnie ZAWSZE
-    wyłączony - to pole akcji, nie zapisywane w konfiguracji, patrz
-    async_step_nasadzenia) i lista roślin do wyboru, ograniczona do roślin
-    JUŻ przypisanych do tej strefy (tak samo jak _root_depth_override_options)."""
+    strefy (ma przypisany zawór) dwa pola: przełącznik, którego domyślna
+    wartość odzwierciedla REALNY stan strefy (włączony, jeśli dosiewka już
+    trwa - patrz state_fn/_zone_growth_stage_state) i lista roślin do
+    wyboru, ograniczona do roślin JUŻ przypisanych do tej strefy (tak samo
+    jak _root_depth_override_options), wstępnie zaznaczona na te aktualnie
+    wybrane w trwającej dosiewce, jeśli jakaś trwa."""
     schema: dict[Any, Any] = {}
     for i in configured_zones:
         plant_keys = merged.get(f"zone{i}_{ZONE_FIELD_PLANTS}") or []
@@ -461,8 +467,10 @@ def _nasadzenia_schema(configured_zones: list[int], merged: dict[str, Any]) -> d
             for key in plant_keys
             if key in PLANTS
         ]
-        schema[vol.Optional(f"nasadzenie_zone{i}_start", default=False)] = selector.BooleanSelector()
-        schema[vol.Optional(f"nasadzenie_zone{i}_rosliny", default=[])] = selector.SelectSelector(
+        active, selected_keys = state_fn(i)
+        default_selected = [key for key in selected_keys if key in plant_keys]
+        schema[vol.Optional(f"nasadzenie_zone{i}_start", default=active)] = selector.BooleanSelector()
+        schema[vol.Optional(f"nasadzenie_zone{i}_rosliny", default=default_selected)] = selector.SelectSelector(
             selector.SelectSelectorConfig(options=options, mode="dropdown", multiple=True)
         )
     return schema
@@ -706,6 +714,12 @@ class _GardenFlowMixin:
         koordynator jeszcze nie istnieje)."""
         return MENU_STEP_IDS
 
+    def _zone_growth_stage_state(self, zid: int) -> tuple[bool, list[str]]:
+        """Nadpisywane w OptionsFlow - patrz tam. W ConfigFlow (pierwsza
+        instalacja) koordynator jeszcze nie istnieje, więc żadna strefa nie
+        może mieć trwającej dosiewki."""
+        return False, []
+
     async def _async_apply_new_plantings(
         self, user_input: dict[str, Any], configured_zones: list[int]
     ) -> None:
@@ -798,16 +812,19 @@ class _GardenFlowMixin:
     async def async_step_nasadzenia(self, user_input: dict[str, Any] | None = None):
         configured_zones = self._configured_zone_ids()
         if user_input is not None:
-            # celowo NIE self._data.update(user_input) - te pola to
-            # jednorazowa akcja (start podlewania), nie trwała konfiguracja;
-            # przy każdym kolejnym wejściu w ten krok wszystkie przełączniki
-            # mają wracać domyślnie na wyłączone, więc nic z tego nie trafia
-            # do zapisywanych opcji wpisu
+            # celowo NIE self._data.update(user_input) - te pola odzwierciedlają
+            # realny, bieżący stan dosiewki per strefa (patrz
+            # _zone_growth_stage_state), nie trwałą konfigurację wpisu; zmiana
+            # przełącznika startuje/anuluje dosiewkę w koordynatorze
+            # (_async_apply_new_plantings), a jego wartość przy następnym
+            # wejściu w ten krok znowu jest wyliczana na nowo ze stanu strefy
             await self._async_apply_new_plantings(user_input, configured_zones)
             return await self.async_step_menu()
         return self.async_show_form(
             step_id="nasadzenia",
-            data_schema=vol.Schema(_nasadzenia_schema(configured_zones, self._merged())),
+            data_schema=vol.Schema(
+                _nasadzenia_schema(configured_zones, self._merged(), self._zone_growth_stage_state)
+            ),
         )
 
     # --- zakończenie -----------------------------------------------------
@@ -888,6 +905,17 @@ class GardenIrrigationOptionsFlow(_GardenFlowMixin, config_entries.OptionsFlow):
         ids.insert(ids.index("finish"), "nasadzenia")
         return ids
 
+    def _zone_growth_stage_state(self, zid: int) -> tuple[bool, list[str]]:
+        coordinator = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+        if coordinator is None:
+            return False, []
+        zstate = coordinator.data.get("zones", {}).get(str(zid))
+        if not zstate:
+            return False, []
+        active = bool(zstate.get("growth_stage"))
+        selected_keys = zstate.get("growth_stage_selected_keys") or []
+        return active, list(selected_keys)
+
     async def _async_apply_new_plantings(
         self, user_input: dict[str, Any], configured_zones: list[int]
     ) -> None:
@@ -895,12 +923,15 @@ class GardenIrrigationOptionsFlow(_GardenFlowMixin, config_entries.OptionsFlow):
         if coordinator is None:
             return
         for i in configured_zones:
-            if not user_input.get(f"nasadzenie_zone{i}_start"):
-                continue
-            plant_keys = user_input.get(f"nasadzenie_zone{i}_rosliny") or []
-            if not plant_keys:
-                continue
-            await coordinator.async_start_new_planting(i, list(plant_keys))
+            was_active, _ = self._zone_growth_stage_state(i)
+            now_on = bool(user_input.get(f"nasadzenie_zone{i}_start"))
+            if now_on and not was_active:
+                plant_keys = user_input.get(f"nasadzenie_zone{i}_rosliny") or []
+                if not plant_keys:
+                    continue
+                await coordinator.async_start_new_planting(i, list(plant_keys))
+            elif was_active and not now_on:
+                await coordinator.async_cancel_new_planting(i)
 
     def _finish(self, merged: dict[str, Any]):
         return self.async_create_entry(title="", data=merged)
