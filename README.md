@@ -646,6 +646,15 @@ Nadal respektuje globalną pauzę (`switch.garden_irrigation_irrigation_paused`)
 przymrozku, ale celowo **NIE** deszcz, prognozę opadu ani wiatr - świeżo wysiane rośliny
 potrzebują regularności bardziej niż oszczędności wody na tym etapie.
 
+Każde podlewanie etapu ma zdefiniowaną **stałą, fizyczną ilość wody** (`depth_mm` - mm
+głębokości = litry na m² powierzchni strefy), NIE czas zaworu - niezależną od konkretnej strefy.
+Ile to potrwa, integracja liczy OSOBNO dla każdej strefy z jej bieżącej wydajności (rodzaj
+nawadniania, powierzchnia, ew. samo-uczenie z przepływomierza - patrz sekcja "Wydajność strefy").
+Jeśli strefa ma przepływomierz (i nie ma wyłączonego "Dostosuj czas podlewania na żywo do
+pomiaru z przepływomierza"), zawór zamyka się dokładnie po dostarczeniu tej ilości wody - NIE
+po upływie szacowanego czasu, dokładnie tak samo jak przy normalnym podlewaniu opartym o
+deficyt SMD.
+
 ### Kiedy i ile - pierwsze podlewanie dnia kontra kolejne
 
 Deficyt wody (SMD) danej strefy jest liczony w tle **niezależnie** od tego, czy trwa dosiewka -
@@ -655,13 +664,13 @@ dosiewki to wykorzystuje, żeby PIERWSZE podlewanie każdego dnia różniło si�
 - **Pierwsze podlewanie dnia** startuje o tej samej porze co główna sekwencja (wschód albo
   stała godzina - to co ustawione w polu "Tryb ustalania startu", patrz sekcja "Kiedy dokładnie
   startuje podlewanie" wyżej). Jego dawka **pokrywa deficyt narosły od poprzedniego dnia** -
-  ale nigdy więcej niż zwykły, krótki `runtime_min` etapu by dostarczył, żeby nie zalać
-  jednorazowo płytkich, kiełkujących korzeni dużą dawką (np. gdy dosiewkę uruchomiono na
-  strefie, która długo nie była podlewana i ma już spory deficyt). Jeśli deficyt jest zerowy
-  (np. pokrył go deszcz), i tak leci pełny, krótki `runtime_min` - to sam "strzał" utrzymujący
-  wilgoć na powierzchni dla kiełkujących nasion, niezależny od stanu głębszego bilansu.
+  ale nigdy więcej niż `depth_mm` etapu by dostarczył, żeby nie zalać jednorazowo płytkich,
+  kiełkujących korzeni dużą dawką (np. gdy dosiewkę uruchomiono na strefie, która długo nie
+  była podlewana i ma już spory deficyt). Jeśli deficyt jest zerowy (np. pokrył go deszcz), i
+  tak leci pełne `depth_mm` - to sama dawka utrzymująca wilgoć na powierzchni dla kiełkujących
+  nasion, niezależna od stanu głębszego bilansu.
 - **Kolejne podlewania tego samego dnia** (przy częstotliwości >1x/dzień, np. 2x w kiełkowaniu
-  trawnika) są stałe, krótkie (ten sam `runtime_min`) i odsunięte o (24h / częstotliwość) od
+  trawnika) są stałe (ta sama ilość `depth_mm`) i odsunięte o (24h / częstotliwość) od
   poprzedniego - np. przy 2x/dzień to +12h. Nie zależą od deficytu - ich jedyna rola to
   utrzymanie regularnej wilgoci na powierzchni.
 - **Dzień startu dosiewki** jest wyjątkiem: pierwsze podlewanie leci od razu po uruchomieniu

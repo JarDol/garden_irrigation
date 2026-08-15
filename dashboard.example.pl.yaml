@@ -587,41 +587,52 @@ views:
           korzeni/MAD powyżej - zamiast tego podlewa wg WŁASNEGO, sztywnego
           harmonogramu przypisanego do rośliny wiodącej wybranej przy starcie:
 
-          | Roślina | Kiełkowanie: dni / x dziennie / min | Młode rośliny: dni / x dziennie / min |
+          | Roślina | Kiełkowanie: dni / x dziennie / mm wody | Młode rośliny: dni / x dziennie / mm wody |
           |---|---|---|
-          | Trawnik ozdobny | 14 / 2x / 5 min | 21 / 1x / 8 min |
-          | Warzywa liściaste | 10 / 2x / 5 min | 21 / 1x / 10 min |
-          | Warzywa korzeniowe | 14 / 2x / 5 min | 21 / 1x / 10 min |
-          | Truskawki / poziomki | 10 / 2x / 5 min | 21 / 1x / 8 min |
-          | Róże | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Byliny ogrodowe (ogólnie) | 10 / 1x / 6 min | 21 / 1x / 10 min |
-          | Hortensje | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Funkie / hosty | 10 / 1x / 6 min | 21 / 1x / 8 min |
-          | Wysokie trawy ozdobne | 14 / 1x / 6 min | 21 / 1x / 10 min |
-          | Krzewy liściaste ozdobne | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Żywopłot liściasty formowany | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Żywopłot / krzewy iglaste | 14 / 1x / 8 min | 35 / 1x / 10 min |
-          | Duże iglaki (jodły, sosny, świerki) | 14 / 1x / 10 min | 45 / 1x / 15 min |
-          | Cisy | 14 / 1x / 8 min | 35 / 1x / 10 min |
-          | Płożące iglaki | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Drzewa liściaste dojrzałe | 14 / 1x / 10 min | 45 / 1x / 15 min |
-          | Drzewa owocowe | 14 / 1x / 10 min | 45 / 1x / 15 min |
-          | Rośliny w donicach (ogólnie) | 7 / 2x / 3 min | 14 / 1x / 5 min |
+          | Trawnik ozdobny | 14 / 2x / 1,0 mm | 21 / 1x / 1,6 mm |
+          | Warzywa liściaste | 10 / 2x / 1,0 mm | 21 / 1x / 2,0 mm |
+          | Warzywa korzeniowe | 14 / 2x / 1,0 mm | 21 / 1x / 2,0 mm |
+          | Truskawki / poziomki | 10 / 2x / 1,0 mm | 21 / 1x / 1,6 mm |
+          | Róże | 14 / 1x / 1,6 mm | 30 / 1x / 2,0 mm |
+          | Byliny ogrodowe (ogólnie) | 10 / 1x / 1,2 mm | 21 / 1x / 2,0 mm |
+          | Hortensje | 14 / 1x / 1,6 mm | 30 / 1x / 2,0 mm |
+          | Funkie / hosty | 10 / 1x / 1,2 mm | 21 / 1x / 1,6 mm |
+          | Wysokie trawy ozdobne | 14 / 1x / 1,2 mm | 21 / 1x / 2,0 mm |
+          | Krzewy liściaste ozdobne | 14 / 1x / 1,6 mm | 30 / 1x / 2,0 mm |
+          | Żywopłot liściasty formowany | 14 / 1x / 1,6 mm | 30 / 1x / 2,0 mm |
+          | Żywopłot / krzewy iglaste | 14 / 1x / 1,6 mm | 35 / 1x / 2,0 mm |
+          | Duże iglaki (jodły, sosny, świerki) | 14 / 1x / 2,0 mm | 45 / 1x / 3,0 mm |
+          | Cisy | 14 / 1x / 1,6 mm | 35 / 1x / 2,0 mm |
+          | Płożące iglaki | 14 / 1x / 1,6 mm | 30 / 1x / 2,0 mm |
+          | Drzewa liściaste dojrzałe | 14 / 1x / 2,0 mm | 45 / 1x / 3,0 mm |
+          | Drzewa owocowe | 14 / 1x / 2,0 mm | 45 / 1x / 3,0 mm |
+          | Rośliny w donicach (ogólnie) | 7 / 2x / 0,6 mm | 14 / 1x / 1,0 mm |
+
+          Kolumna "mm wody" to STAŁA, fizyczna ilość wody na jedno podlewanie
+          (mm głębokości = litry na m² powierzchni strefy) - NIE czas zaworu.
+          Ile to potrwa, integracja liczy OSOBNO dla każdej strefy z jej
+          bieżącej wydajności (typ nawadniania - zraszacze/mikrozraszacze/
+          kroplowanie - oraz ew. samouczenie z przepływomierza, patrz tabela
+          "Domyślna wydajność wg typu nawadniania" niżej) i powierzchni. Jeśli
+          strefa ma przepływomierz (i nie ma wyłączonego "Dostosuj czas
+          podlewania na żywo do pomiaru z przepływomierza"), zawór zamyka się
+          dokładnie po dostarczeniu tej ilości wody - NIE po upływie
+          szacowanego czasu.
 
           **O której godzinie to się dzieje i ile wody leci?** Pierwsze podlewanie
           KAŻDEGO dnia startuje o TEJ SAMEJ porze co główna sekwencja (wschód
           słońca albo stała godzina - to co ustawione w "Tryb ustalania startu",
           karta "Tryb pracy i start podlewania" w konfiguracji integracji). Jego
           dawka pokrywa deficyt wody narosły od poprzedniego dnia - ale nigdy
-          więcej niż zwykły, krótki czas etapu z tabeli wyżej by dostarczył, żeby
-          nie zalać jednorazowo płytkich, kiełkujących korzeni (np. gdy dosiewkę
+          więcej niż mm wody etapu z tabeli wyżej by dostarczył, żeby nie zalać
+          jednorazowo płytkich, kiełkujących korzeni (np. gdy dosiewkę
           uruchomiono na strefie z już narosłym deficytem). Jeśli deficyt jest
-          zerowy (np. pokrył go deszcz), i tak leci pełny, krótki "strzał" - żeby
+          zerowy (np. pokrył go deszcz), i tak leci pełna, krótka dawka - żeby
           utrzymać wilgoć na powierzchni dla kiełkujących nasion, niezależnie od
           stanu głębszego bilansu. Kolejne podlewania tego samego dnia (przy
           częstotliwości >1x/dzień, np. 2x w kiełkowaniu trawnika) są BEZ zmian -
-          stałe, krótkie, odsunięte o (24h / częstotliwość) od poprzedniego (np.
-          +12h przy 2x dziennie) - nie zależą od deficytu, tylko utrzymują
+          stała, krótka dawka, odsunięta o (24h / częstotliwość) od poprzedniej
+          (np. +12h przy 2x dziennie) - nie zależy od deficytu, tylko utrzymuje
           regularną wilgoć. Wyjątek: dzień STARTU dosiewki - pierwsze podlewanie
           leci od razu po uruchomieniu (przełącznik/usługa `start_new_planting`),
           bez czekania na wschód/godzinę; synchronizacja z główną sekwencją

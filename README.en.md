@@ -642,6 +642,14 @@ It still respects the global pause (`switch.garden_irrigation_irrigation_paused`
 risk, but deliberately **not** rain, the rain forecast, or wind - freshly planted vegetation
 needs regularity more than water savings at this stage.
 
+Each stage watering has a defined **fixed, physical amount of water** (`depth_mm` - mm depth =
+liters per m² of zone area), NOT valve time - independent of the specific zone. How long that
+actually takes is calculated SEPARATELY for each zone from its own current application rate
+(irrigation type, area, plus any self-learning from a flow meter - see "Zone application rate").
+If the zone has a flow meter (and "Live-adjust runtime from flow meter reading" isn't disabled),
+the valve closes exactly once that amount of water has been delivered - NOT after the estimated
+time elapses, exactly like normal SMD-deficit-based watering.
+
 ### When and how much - the first watering of the day vs. the rest
 
 A zone's water deficit (SMD) keeps being tracked in the background **regardless** of whether a
@@ -652,13 +660,13 @@ rest:
 - **The first watering of the day** starts at the same time as the main sequence (sunrise or a
   fixed clock time - whatever is set in "Start mode", see "When exactly does watering start"
   above). Its dose **covers the deficit accrued since the previous day** - but never more than
-  the stage's normal, short `runtime_min` would deliver, so it never dumps one large dose onto
-  shallow, germinating roots (e.g. if a growth stage was started on a zone that hadn't been
-  watered in a while and already had a sizeable deficit). If the deficit is zero (e.g. rain
-  covered it), the full, short `runtime_min` still runs anyway - that's just the "shot" that
-  keeps the surface moist for germinating seeds, independent of the deeper water balance.
+  the stage's `depth_mm` would deliver, so it never dumps one large dose onto shallow,
+  germinating roots (e.g. if a growth stage was started on a zone that hadn't been watered in a
+  while and already had a sizeable deficit). If the deficit is zero (e.g. rain covered it), the
+  full `depth_mm` still runs anyway - that's just the dose that keeps the surface moist for
+  germinating seeds, independent of the deeper water balance.
 - **Later waterings on the same day** (at frequency >1x/day, e.g. 2x during lawn germination)
-  are unchanged: fixed, short (the same `runtime_min`), spaced (24h / frequency) apart from the
+  are unchanged: fixed (the same `depth_mm`), spaced (24h / frequency) apart from the
   previous one - e.g. +12h at 2x/day. They don't depend on the deficit - their only job is
   keeping the surface consistently moist.
 - **The day the growth stage is started** is an exception: the first watering runs immediately

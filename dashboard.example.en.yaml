@@ -587,41 +587,52 @@ views:
           table above - instead it waters on its OWN fixed schedule, tied to
           the lead plant selected when it was started:
 
-          | Plant | Germination: days / x per day / min | Young plants: days / x per day / min |
+          | Plant | Germination: days / x per day / mm water | Young plants: days / x per day / mm water |
           |---|---|---|
-          | Ornamental lawn | 14 / 2x / 5 min | 21 / 1x / 8 min |
-          | Leafy vegetables | 10 / 2x / 5 min | 21 / 1x / 10 min |
-          | Root vegetables | 14 / 2x / 5 min | 21 / 1x / 10 min |
-          | Strawberries / wild strawberries | 10 / 2x / 5 min | 21 / 1x / 8 min |
-          | Roses | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Garden perennials (general) | 10 / 1x / 6 min | 21 / 1x / 10 min |
-          | Hydrangeas | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Hostas | 10 / 1x / 6 min | 21 / 1x / 8 min |
-          | Tall ornamental grasses | 14 / 1x / 6 min | 21 / 1x / 10 min |
-          | Ornamental deciduous shrubs | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Formal deciduous hedge | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Coniferous hedge / shrubs | 14 / 1x / 8 min | 35 / 1x / 10 min |
-          | Large conifers (fir, pine, spruce) | 14 / 1x / 10 min | 45 / 1x / 15 min |
-          | Yews | 14 / 1x / 8 min | 35 / 1x / 10 min |
-          | Creeping conifers | 14 / 1x / 8 min | 30 / 1x / 10 min |
-          | Mature deciduous trees | 14 / 1x / 10 min | 45 / 1x / 15 min |
-          | Fruit trees | 14 / 1x / 10 min | 45 / 1x / 15 min |
-          | Potted plants (general) | 7 / 2x / 3 min | 14 / 1x / 5 min |
+          | Ornamental lawn | 14 / 2x / 1.0 mm | 21 / 1x / 1.6 mm |
+          | Leafy vegetables | 10 / 2x / 1.0 mm | 21 / 1x / 2.0 mm |
+          | Root vegetables | 14 / 2x / 1.0 mm | 21 / 1x / 2.0 mm |
+          | Strawberries / wild strawberries | 10 / 2x / 1.0 mm | 21 / 1x / 1.6 mm |
+          | Roses | 14 / 1x / 1.6 mm | 30 / 1x / 2.0 mm |
+          | Garden perennials (general) | 10 / 1x / 1.2 mm | 21 / 1x / 2.0 mm |
+          | Hydrangeas | 14 / 1x / 1.6 mm | 30 / 1x / 2.0 mm |
+          | Hostas | 10 / 1x / 1.2 mm | 21 / 1x / 1.6 mm |
+          | Tall ornamental grasses | 14 / 1x / 1.2 mm | 21 / 1x / 2.0 mm |
+          | Ornamental deciduous shrubs | 14 / 1x / 1.6 mm | 30 / 1x / 2.0 mm |
+          | Formal deciduous hedge | 14 / 1x / 1.6 mm | 30 / 1x / 2.0 mm |
+          | Coniferous hedge / shrubs | 14 / 1x / 1.6 mm | 35 / 1x / 2.0 mm |
+          | Large conifers (fir, pine, spruce) | 14 / 1x / 2.0 mm | 45 / 1x / 3.0 mm |
+          | Yews | 14 / 1x / 1.6 mm | 35 / 1x / 2.0 mm |
+          | Creeping conifers | 14 / 1x / 1.6 mm | 30 / 1x / 2.0 mm |
+          | Mature deciduous trees | 14 / 1x / 2.0 mm | 45 / 1x / 3.0 mm |
+          | Fruit trees | 14 / 1x / 2.0 mm | 45 / 1x / 3.0 mm |
+          | Potted plants (general) | 7 / 2x / 0.6 mm | 14 / 1x / 1.0 mm |
+
+          The "mm water" column is a FIXED, physical amount of water per
+          watering (mm depth = liters per m² of zone area) - NOT valve time.
+          How long that actually takes is calculated SEPARATELY for each zone
+          from its own current application rate (irrigation type -
+          sprinklers/micro-sprinklers/drip - plus any self-learning from a
+          flow meter, see the "Default application rate by irrigation type"
+          table below) and its area. If the zone has a flow meter (and
+          "Live-adjust runtime from flow meter reading" isn't disabled), the
+          valve closes exactly once that amount of water has been delivered -
+          NOT after the estimated time elapses.
 
           **What time of day does this happen, and how much water?** The FIRST
           watering EVERY day starts at the same time as the main sequence
           (sunrise or a fixed clock time - whatever is set in "Start mode", the
           "Operating mode and watering start" card in the integration's
           configuration). Its dose covers the deficit accrued since the
-          previous day - but never more than the stage's normal, short duration
-          from the table above would deliver, so it never dumps one large dose
-          onto shallow, germinating roots (e.g. if the growth stage was started
+          previous day - but never more than the stage's mm water from the
+          table above would deliver, so it never dumps one large dose onto
+          shallow, germinating roots (e.g. if the growth stage was started
           on a zone that already had a sizeable deficit). If the deficit is
-          zero (e.g. rain covered it), the full, short "shot" still runs anyway
+          zero (e.g. rain covered it), the full, short dose still runs anyway
           - that keeps the surface moist for germinating seeds, independent of
           the deeper water balance. Later waterings on the same day (at
           frequency >1x/day, e.g. 2x during lawn germination) are unchanged:
-          fixed, short, spaced (24h / frequency) apart from the previous one -
+          fixed, short dose, spaced (24h / frequency) apart from the previous one -
           e.g. +12h at 2x/day - independent of the deficit, purely to keep the
           surface consistently moist. Exception: the day the growth stage is
           STARTED - the first watering runs immediately after starting
