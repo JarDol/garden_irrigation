@@ -408,11 +408,14 @@ bezwzględny czas zegarowy i po prostu ustawia się na nie od nowa przy każdym 
 2:00 przy zaplanowanym starcie o 3:00 doczeka 3:00, nie odpali nic od razu.
 
 Osobny mechanizm chroni podlewanie, które restart **przerwał w trakcie** (zawór był otwarty,
-albo strefa była już zatwierdzona - integracja faktycznie zaczynała ją właśnie otwierać, gdy HA
-przestało działać) - uruchamiany raz, zaraz po starcie HA, dla każdej strefy, której zapisany
-stan (dla dzisiejszego dnia) to "zatwierdzona" albo "w trakcie". Zwykłe oczekiwanie na
-zatwierdzenie (strefa ma policzony deficyt, ale jeszcze nie doszła jej kolej - może to trwać
-wiele godzin) **nie jest tym dotknięte** - to już poprawnie obsługuje mechanizm z akapitu wyżej:
+albo zdążył się otworzyć i zamknąć, zanim HA wróciło) - uruchamiany raz, zaraz po starcie HA.
+Rozpoznanie takiej strefy celowo NIE opiera się na jej zapisanym statusie (status i tak
+zostałby przeliczony od nowa, gdyby restart trafił akurat na przełom doby - patrz niżej), tylko
+na twardym śladzie: żywym stanie zaworu i/lub zapamiętanym momencie jego otwarcia, obecnym
+wyłącznie na czas trwania sesji podlewania. Zwykłe oczekiwanie na zatwierdzenie (strefa ma
+policzony deficyt, ale jeszcze nie doszła jej kolej - może to trwać wiele godzin) nigdy nie
+zostawia takiego śladu, więc jest tu naturalnie pomijane - obsługuje je już poprawnie mechanizm z
+akapitu wyżej:
 
 - **Zawór nadal otwarty** - integracja go nie rusza (nie wie jeszcze, ile wody zdążył
   dostarczyć), tylko czeka, aż się zamknie. Jeśli strefa ma watchdog sprzętowy (patrz sekcja
@@ -420,15 +423,23 @@ wiele godzin) **nie jest tym dotknięte** - to już poprawnie obsługuje mechani
   zamknie zawór po przekroczeniu tego samego twardego limitu bezpieczeństwa (`max_runtime_min`),
   liczonego od zapamiętanego czasu otwarcia. Dostarczona ilość wody i tak zostanie poprawnie
   rozliczona z przepływomierza, dokładnie tak jak przy normalnym zamknięciu.
-- **Zawór zamknięty, choć zapisany stan mówił "w trakcie"/"zatwierdzone"** - oznacza to, że
-  zamknął się PODCZAS gdy HA nie działało (typowo: watchdog sprzętowy zadziałał, zanim HA
-  wróciło). Integracja rozlicza dostarczoną wodę z przepływomierza (albo z szacunku czasowego,
-  jeśli strefa go nie ma) dokładnie tak, jakby zawór właśnie się zamknął, po czym sprawdza
-  świeżo, czy nadal brakuje wody.
+- **Zawór zamknięty, ale zdążył się otworzyć** - oznacza to, że zamknął się PODCZAS gdy HA nie
+  działało (typowo: watchdog sprzętowy zadziałał, zanim HA wróciło). Integracja rozlicza
+  dostarczoną wodę z przepływomierza (albo z szacunku czasowego, jeśli strefa go nie ma)
+  dokładnie tak, jakby zawór właśnie się zamknął, po czym sprawdza świeżo, czy nadal brakuje
+  wody.
 - **Jeśli po rozliczeniu nadal brakuje wody** - integracja wymusza dogonienie tej strefy (ten
   sam mechanizm co ręczne zatwierdzenie: świeża kontrola deszczu/przymrozku/wiatru tuż przed
   startem), w kolejności jedna strefa naraz (chyba że masz włączony przełącznik jednoczesnego
   podlewania wszystkich stref).
+
+**Restart w okolicach północy** (np. HA zatrzymuje się o 23:50, wraca po 2:00) nie jest tu żadnym
+szczególnym przypadkiem - nocne przeliczenie bilansu wodnego (ET0 za wczorajszy dzień, przyrost
+deficytu, świeży status każdej strefy na dziś) nie jest przywiązane do konkretnej godziny, tylko
+do zauważenia zmiany daty przy pierwszym odświeżeniu integracji po starcie - odpali się od razu
+po wznowieniu, niezależnie o której to jest godzinie. Jedyny efekt uboczny: dane pogodowe z
+ostatnich minut przed zatrzymaniem HA (np. 23:50-24:00) nie zdążyły się zaakumulować, więc
+wczorajsze ET0 jest liczone z odrobinę niepełnego dnia - w praktyce pomijalna różnica.
 
 Strefy w trybie dosiewki/nowego nasadzenia nie są w ten sposób dogłaniane - ich dawki są i tak
 małe, a kolejna, pełna dawka i tak przyjdzie zgodnie z harmonogramem etapu (patrz "Dosiewka /

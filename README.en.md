@@ -402,11 +402,14 @@ times and simply re-arms itself for them on every start. A restart at 2:00 with 
 at 3:00 will wait for 3:00, not fire immediately.
 
 A separate mechanism protects watering that the restart **interrupted mid-run** (the valve was
-open, or the zone was already approved - the integration was actually about to open it, when HA
-stopped) - run once, right after HA starts, for every zone whose saved state (for today) is
-"approved" or "running". Ordinary waiting for approval (a zone with a calculated deficit that
-just hasn't had its turn yet - which can legitimately take hours) is **not** affected by this -
-that's already correctly handled by the mechanism in the paragraph above:
+open, or it opened and closed again before HA came back) - run once, right after HA starts.
+Recognizing such a zone deliberately does NOT rely on its saved status (that status would get
+recomputed from scratch anyway if the restart happened to land on a day boundary - see below),
+but on hard evidence: the valve's live state and/or its remembered opening time, both of which
+only exist for the duration of an actual watering session. Ordinary waiting for approval (a zone
+with a calculated deficit that just hasn't had its turn yet - which can legitimately take hours)
+never leaves that kind of evidence, so it's naturally skipped here - it's already correctly
+handled by the mechanism in the paragraph above:
 
 - **Valve still open** - the integration leaves it alone (it doesn't yet know how much water it
   already delivered), and just waits for it to close. If the zone has a hardware watchdog (see the
@@ -414,14 +417,21 @@ that's already correctly handled by the mechanism in the paragraph above:
   integration closes it itself, in software, once the same hard safety limit (`max_runtime_min`)
   is exceeded, counted from the remembered opening time. The delivered water amount is still
   correctly accounted for from the flow meter, exactly as with a normal close.
-- **Valve closed, even though the saved state said "running"/"approved"** - this means it closed
-  WHILE HA was down (typically: the hardware watchdog fired before HA came back). The integration
-  accounts for the delivered water from the flow meter (or from a time-based estimate if the zone
-  doesn't have one) exactly as if the valve had just closed, then freshly checks whether water is
-  still needed.
+- **Valve closed, but it did open** - this means it closed WHILE HA was down (typically: the
+  hardware watchdog fired before HA came back). The integration accounts for the delivered water
+  from the flow meter (or from a time-based estimate if the zone doesn't have one) exactly as if
+  the valve had just closed, then freshly checks whether water is still needed.
 - **If water is still needed after accounting** - the integration forces that zone to catch up
   (the same mechanism as manual approval: a fresh rain/frost/wind check right before starting),
   one zone at a time (unless you have the simultaneous-watering switch enabled).
+
+**A restart around midnight** (e.g. HA stops at 23:50, comes back after 2:00) isn't a special case
+here - the nightly water-balance rollover (yesterday's ET0, the deficit increase, a fresh status
+for every zone today) isn't tied to a specific clock time, only to noticing the date change on the
+integration's first refresh after startup - it fires right away on resume, whatever time that
+happens to be. The one side effect: weather samples from the last few minutes before HA stopped
+(e.g. 23:50-24:00) never got accumulated, so yesterday's ET0 is computed from a slightly
+incomplete day - a negligible difference in practice.
 
 Zones in overseeding/new-planting mode are not caught up this way - their doses are small anyway,
 and the next full dose will arrive on schedule regardless (see "New planting / reseeding" below),

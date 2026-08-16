@@ -898,16 +898,24 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         restart PRZED terminem po prostu doczeka swojego momentu bez
         ingerencji tej funkcji).
 
-        Dotyczy WYŁĄCZNIE stref, których zapisany stan (status) to APPROVED
-        albo RUNNING DLA DZISIEJSZEGO DNIA - czyli integracja FAKTYCZNIE już
-        zaczęła (albo w tej samej chwili zaczynała) otwierać zawór, gdy
-        restart nastąpił. Celowo NIE dotyczy PENDING - to zwykły, oczekujący
-        stan (rekomendacja policzona, ale jeszcze nie zatwierdzona/nie
-        nadeszła jej pora), który może legalnie trwać wiele godzin; normalny
-        mechanizm wyzwalania (zatwierdzenie ręczne, albo
-        _schedule_auto_trigger o wschodzie/stałej godzinie) już sam poprawnie
-        przetrwa restart, więc wymuszanie PENDING tutaj podlałoby strefę od
-        razu po restarcie, zamiast poczekać na jej właściwą porę.
+        Kwalifikacja strefy do odzyskania NIE opiera się na polu `status` -
+        to pole jest zawodne jako sygnał w tym miejscu, bo `async_setup()`
+        (a w nim `async_config_entry_first_refresh()` -> ewentualny
+        `_roll_over_day`, jeśli restart trafił na przełom doby) wykonuje się
+        PRZED tym, jak HA w pełni wystartuje i wywoła tę funkcję (patrz
+        `_on_hass_started`) - a `_roll_over_day` bezwarunkowo przelicza status
+        KAŻDEJ strefy na nowo (`_compute_zone_status`), więc status
+        RUNNING/APPROVED sprzed restartu mógłby już zostać nadpisany na
+        PENDING/IDLE, zanim ta funkcja zdąży na niego spojrzeć - restart tuż
+        przed północą, który wraca dopiero po niej, jest typowym przykładem.
+        Zamiast tego liczą się TWARDE ŚLADY otwartego zaworu - jego aktualny,
+        żywy stan, i/lub `flow_start`/`flow_start_time` (zapisywane WYŁĄCZNIE
+        na czas trwania sesji - od otwarcia do rozliczonego zamknięcia,
+        `_on_switch_change`/`_account_valve_closed`, i przez `_roll_over_day`
+        w ogóle nietknięte) - obecność któregokolwiek oznacza, że zawór był
+        (albo nadal jest) otwarty. Zwykłe oczekiwanie na zatwierdzenie (status
+        PENDING, może legalnie trwać wiele godzin) nigdy nie zostawia takiego
+        śladu, więc jest tu naturalnie pomijane bez osobnego sprawdzania.
 
         - Zawór FIZYCZNIE otwarty: NIE dotykamy go teraz (nie wiadomo, ile
           już dostarczono - wymuszenie czegokolwiek teraz zepsułoby pomiar).
@@ -919,14 +927,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
           i tak nastąpi normalnie przez _on_switch_change, gdy zawór
           faktycznie się zamknie (czy to przez watchdog sprzętowy, czy przez
           to zabezpieczenie).
-        - Zawór zamknięty, a stan mówił, że powinien być w trakcie/
-          zatwierdzony: zamknął się PODCZAS gdy HA nie działało - żaden
-          listener tego nie złapał na żywo. Jeśli mamy ślad, że faktycznie
-          się otwierał (flow_start/flow_start_time), rozliczamy dostarczoną
-          wodę TERAZ, tym samym mechanizmem co normalne zamknięcie
-          (_account_valve_closed) - w przeciwnym razie (nigdy nie zdążył się
-          otworzyć - restart trafił dokładnie w oczekiwanie na zatwierdzenie)
-          po prostu wracamy do idle.
+        - Zawór zamknięty, ale mamy ślad (flow_start/flow_start_time), że
+          zdążył się otworzyć: musiał się zamknąć PODCZAS gdy HA nie
+          działało - żaden listener tego nie złapał na żywo. Rozliczamy
+          dostarczoną wodę TERAZ, tym samym mechanizmem co normalne
+          zamknięcie (_account_valve_closed).
           Potem świeże przeliczenie potrzeby (_recompute_zone_pending) -
           jeśli nadal brakuje wody, WYMUSZAMY dogonienie przez
           async_approve_zone (ten sam kod co ręczne zatwierdzenie - świeża
@@ -938,64 +943,40 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
           terminie (growth_stage_next_due), a dopędzanie pojedynczej, i tak
           niewielkiej, przerwanej dawki niepotrzebnie komplikowałoby
           harmonogram etapu."""
-        today_str = dt_util.now().date().isoformat()
-        if self._data.get("date") != today_str:
-            return
-
         to_force: list[int] = []
         for zid, zone in self.zones.items():
             zstate = self._data["zones"].get(str(zid))
-            # UWAGA: celowo BEZ ZONE_STATUS_PENDING - to zwykły, oczekujący stan
-            # (rekomendacja policzona, ale jeszcze nie zatwierdzona/nie nadeszła
-            # jej pora), który może trwać wiele godzin, zanim normalny mechanizm
-            # (zatwierdzenie ręczne albo _schedule_auto_trigger o wschodzie/stałej
-            # godzinie) go faktycznie uruchomi - TEN mechanizm już poprawnie
-            # przetrwa restart samodzielnie (rekonstruuje czas wyzwolenia od
-            # nowa przy każdym starcie). Wliczenie PENDING tutaj wymuszałoby
-            # podlewanie natychmiast po KAŻDYM restarcie, ilekroć jakaś strefa
-            # akurat ma przekroczony deficyt - łamiąc harmonogram (np. restart
-            # o 2:00 przy starcie zaplanowanym na 3:00 podlałby OD RAZU o 2:00,
-            # zamiast poczekać). APPROVED/RUNNING to jedyne stany oznaczające,
-            # że integracja FAKTYCZNIE już zaczęła (albo w tej samej chwili
-            # zaczynała) otwierać zawór - tylko to jest realnie "przerwane".
-            if not zstate or zstate.get("status") not in (
-                ZONE_STATUS_APPROVED, ZONE_STATUS_RUNNING,
-            ):
+            if not zstate:
                 continue
 
             state = self.hass.states.get(zone["switch"])
             is_open = state is not None and self._is_active_state(state.state)
+            had_flow_reference = (
+                str(zid) in self._data.get("flow_start", {})
+                or str(zid) in self._data.get("flow_start_time", {})
+            )
+            if not is_open and not had_flow_reference:
+                # ani otwarty zawór, ani ślad nierozliczonej sesji - nic do
+                # zrobienia (obejmuje to też zwykłe oczekiwanie w PENDING)
+                continue
+
             if is_open:
                 _LOGGER.warning(
-                    "Strefa %s: po restarcie HA zawór %s jest nadal otwarty (stan sprzed "
-                    "restartu: %s) - czekam aż się zamknie (watchdog sprzętowy i/lub "
+                    "Strefa %s: po restarcie HA zawór %s jest nadal otwarty (zapisany "
+                    "status: %s) - czekam aż się zamknie (watchdog sprzętowy i/lub "
                     "programowy limit %s min)",
                     zid, zone["switch"], zstate.get("status"), zone["max_runtime_min"],
                 )
                 self._schedule_restart_recovery_deadline(zid)
                 continue
 
-            had_flow_reference = (
-                str(zid) in self._data.get("flow_start", {})
-                or str(zid) in self._data.get("flow_start_time", {})
+            _LOGGER.warning(
+                "Strefa %s: po restarcie HA zawór jest zamknięty, ale ślad z poprzedniej "
+                "sesji (flow_start/flow_start_time) wskazuje, że zdążył się otworzyć - "
+                "rozliczam dostarczoną wodę tak, jakby właśnie się zamknął",
+                zid,
             )
-            if had_flow_reference:
-                _LOGGER.warning(
-                    "Strefa %s: po restarcie HA zawór jest zamknięty, ale stan sprzed "
-                    "restartu (%s) wskazuje, że zdążył się otworzyć - rozliczam dostarczoną "
-                    "wodę tak, jakby właśnie się zamknął",
-                    zid, zstate.get("status"),
-                )
-                self._account_valve_closed(zid)
-            else:
-                _LOGGER.warning(
-                    "Strefa %s: po restarcie HA zawór nigdy się nie otworzył (stan sprzed "
-                    "restartu: %s) - wracam do stanu oczekiwania",
-                    zid, zstate.get("status"),
-                )
-                zstate["status"] = ZONE_STATUS_IDLE
-                zstate["pending_mm"] = 0.0
-                zstate["pending_min"] = 0
+            self._account_valve_closed(zid)
 
             if zstate.get("growth_stage"):
                 continue
