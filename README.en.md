@@ -402,9 +402,11 @@ times and simply re-arms itself for them on every start. A restart at 2:00 with 
 at 3:00 will wait for 3:00, not fire immediately.
 
 A separate mechanism protects watering that the restart **interrupted mid-run** (the valve was
-open, or the zone was already approved/queued, when HA stopped) - run once, right after HA
-starts, for every zone whose saved state shows it already had a calculated/approved watering for
-today:
+open, or the zone was already approved - the integration was actually about to open it, when HA
+stopped) - run once, right after HA starts, for every zone whose saved state (for today) is
+"approved" or "running". Ordinary waiting for approval (a zone with a calculated deficit that
+just hasn't had its turn yet - which can legitimately take hours) is **not** affected by this -
+that's already correctly handled by the mechanism in the paragraph above:
 
 - **Valve still open** - the integration leaves it alone (it doesn't yet know how much water it
   already delivered), and just waits for it to close. If the zone has a hardware watchdog (see the

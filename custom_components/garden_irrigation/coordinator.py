@@ -898,11 +898,16 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         restart PRZED terminem po prostu doczeka swojego momentu bez
         ingerencji tej funkcji).
 
-        Dotyczy WYŁĄCZNIE stref, których zapisany stan (status) mówi, że
-        integracja już zdążyła wyliczyć/zatwierdzić podlewanie (PENDING/
-        APPROVED/RUNNING) DLA DZISIEJSZEGO DNIA - tylko dla takich mamy
-        pewność, że to świeża rekomendacja, a nie zaległość sprzed
-        przeliczenia dnia.
+        Dotyczy WYŁĄCZNIE stref, których zapisany stan (status) to APPROVED
+        albo RUNNING DLA DZISIEJSZEGO DNIA - czyli integracja FAKTYCZNIE już
+        zaczęła (albo w tej samej chwili zaczynała) otwierać zawór, gdy
+        restart nastąpił. Celowo NIE dotyczy PENDING - to zwykły, oczekujący
+        stan (rekomendacja policzona, ale jeszcze nie zatwierdzona/nie
+        nadeszła jej pora), który może legalnie trwać wiele godzin; normalny
+        mechanizm wyzwalania (zatwierdzenie ręczne, albo
+        _schedule_auto_trigger o wschodzie/stałej godzinie) już sam poprawnie
+        przetrwa restart, więc wymuszanie PENDING tutaj podlałoby strefę od
+        razu po restarcie, zamiast poczekać na jej właściwą porę.
 
         - Zawór FIZYCZNIE otwarty: NIE dotykamy go teraz (nie wiadomo, ile
           już dostarczono - wymuszenie czegokolwiek teraz zepsułoby pomiar).
@@ -940,8 +945,21 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         to_force: list[int] = []
         for zid, zone in self.zones.items():
             zstate = self._data["zones"].get(str(zid))
+            # UWAGA: celowo BEZ ZONE_STATUS_PENDING - to zwykły, oczekujący stan
+            # (rekomendacja policzona, ale jeszcze nie zatwierdzona/nie nadeszła
+            # jej pora), który może trwać wiele godzin, zanim normalny mechanizm
+            # (zatwierdzenie ręczne albo _schedule_auto_trigger o wschodzie/stałej
+            # godzinie) go faktycznie uruchomi - TEN mechanizm już poprawnie
+            # przetrwa restart samodzielnie (rekonstruuje czas wyzwolenia od
+            # nowa przy każdym starcie). Wliczenie PENDING tutaj wymuszałoby
+            # podlewanie natychmiast po KAŻDYM restarcie, ilekroć jakaś strefa
+            # akurat ma przekroczony deficyt - łamiąc harmonogram (np. restart
+            # o 2:00 przy starcie zaplanowanym na 3:00 podlałby OD RAZU o 2:00,
+            # zamiast poczekać). APPROVED/RUNNING to jedyne stany oznaczające,
+            # że integracja FAKTYCZNIE już zaczęła (albo w tej samej chwili
+            # zaczynała) otwierać zawór - tylko to jest realnie "przerwane".
             if not zstate or zstate.get("status") not in (
-                ZONE_STATUS_PENDING, ZONE_STATUS_APPROVED, ZONE_STATUS_RUNNING,
+                ZONE_STATUS_APPROVED, ZONE_STATUS_RUNNING,
             ):
                 continue
 

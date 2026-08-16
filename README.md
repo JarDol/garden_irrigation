@@ -408,9 +408,11 @@ bezwzględny czas zegarowy i po prostu ustawia się na nie od nowa przy każdym 
 2:00 przy zaplanowanym starcie o 3:00 doczeka 3:00, nie odpali nic od razu.
 
 Osobny mechanizm chroni podlewanie, które restart **przerwał w trakcie** (zawór był otwarty,
-albo strefa była już zatwierdzona/w kolejce, gdy HA przestało działać) - uruchamiany raz, zaraz
-po starcie HA, dla każdej strefy, która wg zapisanego stanu miała dziś już wyliczone/
-zatwierdzone podlewanie:
+albo strefa była już zatwierdzona - integracja faktycznie zaczynała ją właśnie otwierać, gdy HA
+przestało działać) - uruchamiany raz, zaraz po starcie HA, dla każdej strefy, której zapisany
+stan (dla dzisiejszego dnia) to "zatwierdzona" albo "w trakcie". Zwykłe oczekiwanie na
+zatwierdzenie (strefa ma policzony deficyt, ale jeszcze nie doszła jej kolej - może to trwać
+wiele godzin) **nie jest tym dotknięte** - to już poprawnie obsługuje mechanizm z akapitu wyżej:
 
 - **Zawór nadal otwarty** - integracja go nie rusza (nie wie jeszcze, ile wody zdążył
   dostarczyć), tylko czeka, aż się zamknie. Jeśli strefa ma watchdog sprzętowy (patrz sekcja
