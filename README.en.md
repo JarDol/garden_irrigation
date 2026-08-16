@@ -394,6 +394,37 @@ exactly at sunrise or at the scheduled start time, if the "start before sunrise"
 - delivering the correct amount of water takes priority over sticking to the schedule to the
 minute.
 
+## Recovery after an HA restart
+
+A scheduled but not-yet-started watering (sunrise/fixed time, the next overseeding dose) **survives
+a restart with no intervention needed** - the integration tracks these as absolute wall-clock
+times and simply re-arms itself for them on every start. A restart at 2:00 with a scheduled start
+at 3:00 will wait for 3:00, not fire immediately.
+
+A separate mechanism protects watering that the restart **interrupted mid-run** (the valve was
+open, or the zone was already approved/queued, when HA stopped) - run once, right after HA
+starts, for every zone whose saved state shows it already had a calculated/approved watering for
+today:
+
+- **Valve still open** - the integration leaves it alone (it doesn't yet know how much water it
+  already delivered), and just waits for it to close. If the zone has a hardware watchdog (see the
+  section above), that will eventually close it; if it doesn't (or doesn't close it in time), the
+  integration closes it itself, in software, once the same hard safety limit (`max_runtime_min`)
+  is exceeded, counted from the remembered opening time. The delivered water amount is still
+  correctly accounted for from the flow meter, exactly as with a normal close.
+- **Valve closed, even though the saved state said "running"/"approved"** - this means it closed
+  WHILE HA was down (typically: the hardware watchdog fired before HA came back). The integration
+  accounts for the delivered water from the flow meter (or from a time-based estimate if the zone
+  doesn't have one) exactly as if the valve had just closed, then freshly checks whether water is
+  still needed.
+- **If water is still needed after accounting** - the integration forces that zone to catch up
+  (the same mechanism as manual approval: a fresh rain/frost/wind check right before starting),
+  one zone at a time (unless you have the simultaneous-watering switch enabled).
+
+Zones in overseeding/new-planting mode are not caught up this way - their doses are small anyway,
+and the next full dose will arrive on schedule regardless (see "New planting / reseeding" below),
+so chasing a single interrupted dose would needlessly complicate the stage schedule.
+
 ## Where the data for the ET0 calculation comes from
 
 Besides the data from your weather station, the FAO-56 Penman-Monteith method requires two
@@ -649,6 +680,15 @@ actually takes is calculated SEPARATELY for each zone from its own current appli
 If the zone has a flow meter (and "Live-adjust runtime from flow meter reading" isn't disabled),
 the valve closes exactly once that amount of water has been delivered - NOT after the estimated
 time elapses, exactly like normal SMD-deficit-based watering.
+
+**Manual dose override per zone:** the catalog's `depth_mm` value is only a starting point - if
+observation shows that a particular zone (different sun exposure, different soil, a different
+microclimate than the rest of the garden) needs a different amount of water at the
+germination/young-plants stage, the "Manual dose override - germination (mm)" and "Manual dose
+override - young plants (mm)" fields for that zone (Step 4: zone details) completely replace the
+catalog value for THAT zone, regardless of which plant is currently driving the schedule (see
+"Several plants at once in one zone" below). Leave blank to keep using the leading plant's
+catalog value, as before.
 
 ### When and how much - the first watering of the day vs. the rest
 
@@ -932,13 +972,18 @@ first 2-3 weeks of observation:
 - `sensor.<zone>_kc_value` and `sensor.<zone>_mad_threshold` show exactly which value is
   currently in use and where it came from (which plant, or manual calibration) - a good starting
   point for deciding what to adjust.
+- For zones in overseeding/new-planting mode - if the growth stage's dose (germination/young
+  plants) from the leading plant's catalog doesn't fit a particular zone, adjust it with the
+  "Manual dose override - germination/young plants (mm)" fields (see "New planting / reseeding"
+  above) - works exactly like the manual Kc/MAD calibration, just for the growth-stage water
+  amount.
 
 ## Things worth being aware of
 
-- The watering sequence and the "wake up" wait in automatic mode run as background tasks inside a
-  running Home Assistant instance - they are **not** persisted to a database or replayed after a
-  restart. An HA restart while waiting for the start will interrupt that night's scheduled
-  watering.
+- The "wake up" wait in automatic mode (sunrise/fixed time) survives a restart on its own - it's
+  a plain, re-armed-on-every-start point in time, not a background task that would need to be
+  replayed. What a restart CAN interrupt is watering that has already physically started (valve
+  open) at the moment of the restart - see "Recovery after an HA restart" above for that case.
 - The exact shape of the data returned by `weather.get_forecasts` can differ between weather
   integrations - if a warning about a failed forecast fetch appears in the logs after configuring
   a `weather.*` entity, check manually in Developer Tools → Services by calling

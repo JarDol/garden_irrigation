@@ -115,6 +115,8 @@ from .const import (
     DEFAULT_ADJUST_RUNTIME_FROM_FLOW,
     ZONE_FIELD_KC_OVERRIDE,
     ZONE_FIELD_MAD_OVERRIDE,
+    ZONE_FIELD_GERMINATION_DEPTH_OVERRIDE_MM,
+    ZONE_FIELD_YOUNG_DEPTH_OVERRIDE_MM,
     ZONE_FIELD_ROOT_DEPTH_OVERRIDE_PLANT,
     ZONE_FIELD_MIN_DAYS_BETWEEN,
     ZONE_FIELD_WIND_SENSITIVE,
@@ -627,6 +629,14 @@ def _zone_schema(index: int, defaults: dict[str, Any], learned_rate: float | Non
         vol.Optional(
             prefix + ZONE_FIELD_MAD_OVERRIDE,
             default=defaults.get(prefix + ZONE_FIELD_MAD_OVERRIDE, ""),
+        ): selector.TextSelector(),
+        vol.Optional(
+            prefix + ZONE_FIELD_GERMINATION_DEPTH_OVERRIDE_MM,
+            default=defaults.get(prefix + ZONE_FIELD_GERMINATION_DEPTH_OVERRIDE_MM, ""),
+        ): selector.TextSelector(),
+        vol.Optional(
+            prefix + ZONE_FIELD_YOUNG_DEPTH_OVERRIDE_MM,
+            default=defaults.get(prefix + ZONE_FIELD_YOUNG_DEPTH_OVERRIDE_MM, ""),
         ): selector.TextSelector(),
         vol.Optional(
             prefix + ZONE_FIELD_ROOT_DEPTH_OVERRIDE_PLANT,

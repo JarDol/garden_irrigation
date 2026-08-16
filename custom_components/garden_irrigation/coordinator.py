@@ -131,6 +131,8 @@ from .const import (
     DEFAULT_ADJUST_RUNTIME_FROM_FLOW,
     ZONE_FIELD_KC_OVERRIDE,
     ZONE_FIELD_MAD_OVERRIDE,
+    ZONE_FIELD_GERMINATION_DEPTH_OVERRIDE_MM,
+    ZONE_FIELD_YOUNG_DEPTH_OVERRIDE_MM,
     ZONE_FIELD_ROOT_DEPTH_OVERRIDE_PLANT,
     ZONE_FIELD_MIN_DAYS_BETWEEN,
     ZONE_FIELD_WIND_SENSITIVE,
@@ -428,6 +430,35 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 except ValueError:
                     _LOGGER.warning("Strefa %s: nieprawidłowa wartość mad_override '%s' - ignoruję", i, mad_override_raw)
 
+            # ręczna korekta dawki wody (mm) dla stadiów wzrostu (kiełkowanie/młode)
+            # TEJ KONKRETNEJ strefy - zastępuje depth_mm z katalogu rośliny wiodącej
+            # (patrz _async_process_growth_stages), niezależnie od tego, która roślina
+            # akurat prowadzi harmonogram
+            growth_stage_depth_override_mm: dict[str, float | None] = {
+                GROWTH_STAGE_GERMINATION: None,
+                GROWTH_STAGE_YOUNG: None,
+            }
+            germination_override_raw = (
+                self.cfg.get(prefix + ZONE_FIELD_GERMINATION_DEPTH_OVERRIDE_MM) or ""
+            ).strip()
+            if germination_override_raw:
+                try:
+                    growth_stage_depth_override_mm[GROWTH_STAGE_GERMINATION] = float(germination_override_raw)
+                except ValueError:
+                    _LOGGER.warning(
+                        "Strefa %s: nieprawidłowa wartość germination_depth_override_mm '%s' - ignoruję",
+                        i, germination_override_raw,
+                    )
+            young_override_raw = (self.cfg.get(prefix + ZONE_FIELD_YOUNG_DEPTH_OVERRIDE_MM) or "").strip()
+            if young_override_raw:
+                try:
+                    growth_stage_depth_override_mm[GROWTH_STAGE_YOUNG] = float(young_override_raw)
+                except ValueError:
+                    _LOGGER.warning(
+                        "Strefa %s: nieprawidłowa wartość young_depth_override_mm '%s' - ignoruję",
+                        i, young_override_raw,
+                    )
+
             zone_name = self.cfg.get(prefix + ZONE_FIELD_NAME) or f"Strefa {i}"
             raw_area_m2 = float(self.cfg.get(prefix + ZONE_FIELD_AREA, 10.0))
             irrigation_type = self.cfg.get(prefix + ZONE_FIELD_IRRIGATION_TYPE, DEFAULT_IRRIGATION_TYPE)
@@ -489,6 +520,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 "force_heat_min_days": int(
                     self.cfg.get(prefix + ZONE_FIELD_FORCE_HEAT_MIN_DAYS, DEFAULT_FORCE_HEAT_MIN_DAYS)
                 ),
+                "growth_stage_depth_override_mm": growth_stage_depth_override_mm,
             }
         return zones
 
@@ -798,6 +830,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         issue_registry (async_create_issue/async_delete_issue) są niebezpieczne
         i mogą uszkodzić dane albo zawiesić HA (ostrzeżenie z homeassistant.helpers.frame)."""
         self._check_missing_entities()
+        self.hass.async_create_task(self._async_recover_after_restart())
 
     def _check_missing_entities(self) -> None:
         for zid, zone in self.zones.items():
@@ -855,6 +888,153 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         # Przeplanowywane też co noc przy przeliczeniu dnia (_roll_over_day).
         if self.cfg.get(CONF_AUTO_MODE_ENABLED, True):
             self._schedule_auto_trigger()
+
+    async def _async_recover_after_restart(self) -> None:
+        """Wywoływane RAZ, przy każdym starcie HA (patrz _on_hass_started) -
+        łata strefy, których podlewanie zostało przerwane restartem
+        integracji. NIE dotyczy zwykłego, zaplanowanego oczekiwania na
+        przyszły termin - ten dalej działa normalnie (_schedule_auto_trigger
+        / growth_stage_next_due są oparte o bezwzględny czas zegarowy, więc
+        restart PRZED terminem po prostu doczeka swojego momentu bez
+        ingerencji tej funkcji).
+
+        Dotyczy WYŁĄCZNIE stref, których zapisany stan (status) mówi, że
+        integracja już zdążyła wyliczyć/zatwierdzić podlewanie (PENDING/
+        APPROVED/RUNNING) DLA DZISIEJSZEGO DNIA - tylko dla takich mamy
+        pewność, że to świeża rekomendacja, a nie zaległość sprzed
+        przeliczenia dnia.
+
+        - Zawór FIZYCZNIE otwarty: NIE dotykamy go teraz (nie wiadomo, ile
+          już dostarczono - wymuszenie czegokolwiek teraz zepsułoby pomiar).
+          Zamiast tego planujemy jednorazowe, programowe zabezpieczenie na
+          wypadek braku sprzętowego watchdoga (`timer_entity`) - twardy limit
+          max_runtime_min liczony od zapamiętanego czasu otwarcia
+          (flow_start_time, przetrwał restart) - patrz
+          _schedule_restart_recovery_deadline. Rozliczenie dostarczonej wody
+          i tak nastąpi normalnie przez _on_switch_change, gdy zawór
+          faktycznie się zamknie (czy to przez watchdog sprzętowy, czy przez
+          to zabezpieczenie).
+        - Zawór zamknięty, a stan mówił, że powinien być w trakcie/
+          zatwierdzony: zamknął się PODCZAS gdy HA nie działało - żaden
+          listener tego nie złapał na żywo. Jeśli mamy ślad, że faktycznie
+          się otwierał (flow_start/flow_start_time), rozliczamy dostarczoną
+          wodę TERAZ, tym samym mechanizmem co normalne zamknięcie
+          (_account_valve_closed) - w przeciwnym razie (nigdy nie zdążył się
+          otworzyć - restart trafił dokładnie w oczekiwanie na zatwierdzenie)
+          po prostu wracamy do idle.
+          Potem świeże przeliczenie potrzeby (_recompute_zone_pending) -
+          jeśli nadal brakuje wody, WYMUSZAMY dogonienie przez
+          async_approve_zone (ten sam kod co ręczne zatwierdzenie - świeża
+          kontrola deszczu/przymrozku/wiatru, i ta sama wspólna kolejka
+          'jedna strefa naraz', która i tak już serializuje wszystkie starty,
+          chyba że włączone jest jednoczesne podlewanie). Stref w trakcie
+          stadium wzrostu (dosiewka) NIE dogania się w ten sposób - ich
+          harmonogram i tak dostarczy kolejną, pełną dawkę o najbliższym
+          terminie (growth_stage_next_due), a dopędzanie pojedynczej, i tak
+          niewielkiej, przerwanej dawki niepotrzebnie komplikowałoby
+          harmonogram etapu."""
+        today_str = dt_util.now().date().isoformat()
+        if self._data.get("date") != today_str:
+            return
+
+        to_force: list[int] = []
+        for zid, zone in self.zones.items():
+            zstate = self._data["zones"].get(str(zid))
+            if not zstate or zstate.get("status") not in (
+                ZONE_STATUS_PENDING, ZONE_STATUS_APPROVED, ZONE_STATUS_RUNNING,
+            ):
+                continue
+
+            state = self.hass.states.get(zone["switch"])
+            is_open = state is not None and self._is_active_state(state.state)
+            if is_open:
+                _LOGGER.warning(
+                    "Strefa %s: po restarcie HA zawór %s jest nadal otwarty (stan sprzed "
+                    "restartu: %s) - czekam aż się zamknie (watchdog sprzętowy i/lub "
+                    "programowy limit %s min)",
+                    zid, zone["switch"], zstate.get("status"), zone["max_runtime_min"],
+                )
+                self._schedule_restart_recovery_deadline(zid)
+                continue
+
+            had_flow_reference = (
+                str(zid) in self._data.get("flow_start", {})
+                or str(zid) in self._data.get("flow_start_time", {})
+            )
+            if had_flow_reference:
+                _LOGGER.warning(
+                    "Strefa %s: po restarcie HA zawór jest zamknięty, ale stan sprzed "
+                    "restartu (%s) wskazuje, że zdążył się otworzyć - rozliczam dostarczoną "
+                    "wodę tak, jakby właśnie się zamknął",
+                    zid, zstate.get("status"),
+                )
+                self._account_valve_closed(zid)
+            else:
+                _LOGGER.warning(
+                    "Strefa %s: po restarcie HA zawór nigdy się nie otworzył (stan sprzed "
+                    "restartu: %s) - wracam do stanu oczekiwania",
+                    zid, zstate.get("status"),
+                )
+                zstate["status"] = ZONE_STATUS_IDLE
+                zstate["pending_mm"] = 0.0
+                zstate["pending_min"] = 0
+
+            if zstate.get("growth_stage"):
+                continue
+            self._recompute_zone_pending(zid)
+            if zstate.get("status") == ZONE_STATUS_PENDING and zstate.get("pending_min", 0) > 0:
+                to_force.append(zid)
+
+        if to_force:
+            await self._async_persist()
+            self.async_set_updated_data(self._data)
+            for zid in to_force:
+                _LOGGER.warning(
+                    "Strefa %s: po restarcie HA nadal brakuje %.1f mm - wymuszam dogonienie "
+                    "podlewania",
+                    zid, self._data["zones"][str(zid)].get("pending_mm", 0.0),
+                )
+                self.hass.async_create_task(self.async_approve_zone(zid))
+
+    def _schedule_restart_recovery_deadline(self, zid: int) -> None:
+        """Jednorazowe, programowe zabezpieczenie dla strefy, której zawór
+        jest otwarty tuż po restarcie HA - jeśli nie ma sprzętowego watchdoga
+        (`timer_entity`) na sterowniku, integracja sama zamknie zawór po
+        upłynięciu twardego limitu max_runtime_min, liczonego od zapamiętanego
+        czasu otwarcia (flow_start_time, przetrwał restart). Jeśli watchdog
+        sprzętowy istnieje i zdąży zamknąć zawór wcześniej, to zabezpieczenie
+        po prostu nic nie zrobi (sprawdza stan na żywo tuż przed ewentualnym
+        zamknięciem)."""
+        zone = self.zones[zid]
+        start_time_str = self._data.get("flow_start_time", {}).get(str(zid))
+        start_time = dt_util.parse_datetime(start_time_str) if start_time_str else None
+        if start_time is None:
+            # brak zapamiętanego czasu otwarcia (nie powinno się zdarzyć, skoro
+            # zawór jest otwarty, ale na wszelki wypadek - licz limit od teraz,
+            # zamiast zostawić strefę bez żadnego zabezpieczenia
+            start_time = dt_util.utcnow()
+        deadline = start_time + timedelta(minutes=zone["max_runtime_min"])
+
+        async def _fire(_now) -> None:
+            state = self.hass.states.get(zone["switch"])
+            if state is None or not self._is_active_state(state.state):
+                return
+            _LOGGER.warning(
+                "Strefa %s: brak sprzętowego watchdoga (albo się nie zdążył) - programowo "
+                "zamykam zawór %s po przekroczeniu limitu bezpieczeństwa %s min od restartu HA",
+                zid, zone["switch"], zone["max_runtime_min"],
+            )
+            domain = zone["switch"].split(".")[0]
+            close_service = "close_valve" if domain == "valve" else "turn_off"
+            await self.hass.services.async_call(
+                domain, close_service, {"entity_id": zone["switch"]}, blocking=True
+            )
+
+        self._unsub_listeners.append(
+            async_track_point_in_time(
+                self.hass, _fire, max(deadline, dt_util.utcnow() + timedelta(seconds=2))
+            )
+        )
 
     async def _async_persist(self, _now=None) -> None:
         await self._store.async_save(self._data)
@@ -1603,130 +1783,144 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             self.hass.async_create_task(self._async_persist())
 
         elif was_active and not is_active:
-            zstate = self._data["zones"].setdefault(str(zid), {"smd": 0.0})
-            depth_applied = None
-            measured_from_flow_sensor = False
-            if zone["flow_sensor"]:
-                start = self._data["flow_start"].get(str(zid))
-                end_state = self.hass.states.get(zone["flow_sensor"])
-                end = _safe_float(self.hass, zone["flow_sensor"])
-                if start is not None and end is not None and end >= start:
-                    raw_used = end - start
-                    unit = end_state.attributes.get("unit_of_measurement") if end_state else None
-                    liters_used = _volume_to_liters(raw_used, unit)
-                    depth_applied = liters_used / zone["area_m2"] if zone["area_m2"] else None
-                    measured_from_flow_sensor = depth_applied is not None
-            if depth_applied is None:
-                # brak przepływomierza / błędny odczyt - licz z RZECZYWISTEGO czasu,
-                # przez jaki zawór był otwarty (flow_start_time, zapisywane przy
-                # KAŻDYM otwarciu, niezależnie od obecności przepływomierza) i
-                # efektywnej (wyuczonej, jeśli już jest, w przeciwnym razie ręcznej)
-                # wydajności. Celowo NIE pending_min - to pole bywa w międzyczasie
-                # wyzerowane przez _compute_zone_status (np. dla stref w stadium
-                # wzrostu, gdzie jest to zamierzone, żeby nie dublować standardowego
-                # podlewania) i nie odzwierciedlałoby faktycznego czasu pracy zaworu.
-                start_time_str = self._data.get("flow_start_time", {}).get(str(zid))
-                elapsed_min = None
-                if start_time_str:
-                    start_time = dt_util.parse_datetime(start_time_str)
-                    if start_time:
-                        elapsed_min = (dt_util.utcnow() - start_time).total_seconds() / 60
-                minutes_for_depth = elapsed_min if elapsed_min is not None else zstate.get("pending_min", 0)
-                depth_applied = self._effective_rate_mmh(zid, zone) * (minutes_for_depth / 60)
+            self._account_valve_closed(zid)
 
-            # samo-kalibracja rzeczywistej wydajności strefy - TYLKO gdy mamy
-            # prawdziwy pomiar z przepływomierza (nie szacunek), zawór był
-            # otwarty wystarczająco długo, żeby pomiar miał sens, ORAZ strefa
-            # ma włączony przełącznik "Ucz się z wodomierza" (jeśli wyłączony,
-            # świadomie NIE zapisujemy nauczonej wartości - nie tylko jej nie
-            # używamy - żeby sensor wydajności nie pokazywał czegoś, co i tak
-            # jest ignorowane)
-            if measured_from_flow_sensor and zone.get("learn_rate_from_flow", True):
-                start_time_str = self._data.get("flow_start_time", {}).get(str(zid))
-                elapsed_min = None
-                if start_time_str:
-                    start_time = dt_util.parse_datetime(start_time_str)
-                    if start_time:
-                        elapsed_min = (dt_util.utcnow() - start_time).total_seconds() / 60
-                if elapsed_min and elapsed_min >= 1 and depth_applied > 0:
-                    measured_rate = depth_applied / (elapsed_min / 60)
-                    # sanity check - odrzuć skrajnie nierealne odczyty (np.
-                    # glitch przepływomierza), zamiast psuć nauczoną wartość.
-                    # Górna granica 500 (nie 200) - potwierdzone bezpośrednim
-                    # pomiarem, że małe strefy (np. donice) z niemałym
-                    # przepływem mogą legalnie osiągać 200+ mm/h, patrz README
-                    if 0.5 <= measured_rate <= 500:
-                        prev_rate = zstate.get("learned_rate_mmh")
-                        prev_samples = zstate.get("learned_rate_samples", 0)
-                        if prev_rate is None:
-                            new_rate = measured_rate
-                        else:
-                            # wygładzanie wykładnicze - nowsze pomiary ważą
-                            # więcej, ale pojedynczy dziwny wynik nie zepsuje
-                            # od razu całej historii
-                            new_rate = prev_rate * 0.7 + measured_rate * 0.3
-                        zstate["learned_rate_mmh"] = round(new_rate, 2)
-                        zstate["learned_rate_samples"] = min(prev_samples + 1, 999)
-                        zstate["last_measured_rate_mmh"] = round(measured_rate, 2)
-                        _LOGGER.info(
-                            "Strefa %s: samo-kalibracja wydajności - zmierzono %.1f mm/h "
-                            "(uśredniona: %.1f mm/h, próbka #%s)",
-                            zid, measured_rate, new_rate, zstate["learned_rate_samples"],
-                        )
-            self._data.get("flow_start_time", {}).pop(str(zid), None)
+    def _account_valve_closed(self, zid: int) -> None:
+        """Rozlicza zamknięcie zaworu strefy - dostarczoną ilość wody (z
+        przepływomierza, jeśli jest, w przeciwnym razie z rzeczywistego czasu
+        otwarcia i efektywnej wydajności), pomniejszenie deficytu, samo-
+        kalibrację wydajności i statystyki zużycia. Wywoływana NORMALNIE z
+        `_on_switch_change` (zdarzenie zamknięcia w czasie rzeczywistym), ale
+        też z `_async_recover_after_restart` dla strefy, która zamknęła zawór
+        PODCZAS gdy HA nie działało (żaden listener tego nie złapał na żywo) -
+        oba przypadki liczą się identycznie, bo `flow_start`/`flow_start_time`
+        (punkt odniesienia) są trwale zapisywane w Storage w momencie otwarcia
+        zaworu, więc przetrwają restart."""
+        zone = self.zones[zid]
+        zstate = self._data["zones"].setdefault(str(zid), {"smd": 0.0})
+        depth_applied = None
+        measured_from_flow_sensor = False
+        if zone["flow_sensor"]:
+            start = self._data["flow_start"].get(str(zid))
+            end_state = self.hass.states.get(zone["flow_sensor"])
+            end = _safe_float(self.hass, zone["flow_sensor"])
+            if start is not None and end is not None and end >= start:
+                raw_used = end - start
+                unit = end_state.attributes.get("unit_of_measurement") if end_state else None
+                liters_used = _volume_to_liters(raw_used, unit)
+                depth_applied = liters_used / zone["area_m2"] if zone["area_m2"] else None
+                measured_from_flow_sensor = depth_applied is not None
+        if depth_applied is None:
+            # brak przepływomierza / błędny odczyt - licz z RZECZYWISTEGO czasu,
+            # przez jaki zawór był otwarty (flow_start_time, zapisywane przy
+            # KAŻDYM otwarciu, niezależnie od obecności przepływomierza) i
+            # efektywnej (wyuczonej, jeśli już jest, w przeciwnym razie ręcznej)
+            # wydajności. Celowo NIE pending_min - to pole bywa w międzyczasie
+            # wyzerowane przez _compute_zone_status (np. dla stref w stadium
+            # wzrostu, gdzie jest to zamierzone, żeby nie dublować standardowego
+            # podlewania) i nie odzwierciedlałoby faktycznego czasu pracy zaworu.
+            start_time_str = self._data.get("flow_start_time", {}).get(str(zid))
+            elapsed_min = None
+            if start_time_str:
+                start_time = dt_util.parse_datetime(start_time_str)
+                if start_time:
+                    elapsed_min = (dt_util.utcnow() - start_time).total_seconds() / 60
+            minutes_for_depth = elapsed_min if elapsed_min is not None else zstate.get("pending_min", 0)
+            depth_applied = self._effective_rate_mmh(zid, zone) * (minutes_for_depth / 60)
 
-            zstate["smd"] = max(0.0, zstate.get("smd", 0.0) - depth_applied)
-            zstate["smd_projected"] = max(0.0, zstate.get("smd_projected", 0.0) - depth_applied)
-            zstate["pending_mm"] = 0.0
-            zstate["pending_min"] = 0
-            zstate["status"] = ZONE_STATUS_DONE
-            self._data["flow_start"].pop(str(zid), None)
-            self._compute_projected_status(zid)
+        # samo-kalibracja rzeczywistej wydajności strefy - TYLKO gdy mamy
+        # prawdziwy pomiar z przepływomierza (nie szacunek), zawór był
+        # otwarty wystarczająco długo, żeby pomiar miał sens, ORAZ strefa
+        # ma włączony przełącznik "Ucz się z wodomierza" (jeśli wyłączony,
+        # świadomie NIE zapisujemy nauczonej wartości - nie tylko jej nie
+        # używamy - żeby sensor wydajności nie pokazywał czegoś, co i tak
+        # jest ignorowane)
+        if measured_from_flow_sensor and zone.get("learn_rate_from_flow", True):
+            start_time_str = self._data.get("flow_start_time", {}).get(str(zid))
+            elapsed_min = None
+            if start_time_str:
+                start_time = dt_util.parse_datetime(start_time_str)
+                if start_time:
+                    elapsed_min = (dt_util.utcnow() - start_time).total_seconds() / 60
+            if elapsed_min and elapsed_min >= 1 and depth_applied > 0:
+                measured_rate = depth_applied / (elapsed_min / 60)
+                # sanity check - odrzuć skrajnie nierealne odczyty (np.
+                # glitch przepływomierza), zamiast psuć nauczoną wartość.
+                # Górna granica 500 (nie 200) - potwierdzone bezpośrednim
+                # pomiarem, że małe strefy (np. donice) z niemałym
+                # przepływem mogą legalnie osiągać 200+ mm/h, patrz README
+                if 0.5 <= measured_rate <= 500:
+                    prev_rate = zstate.get("learned_rate_mmh")
+                    prev_samples = zstate.get("learned_rate_samples", 0)
+                    if prev_rate is None:
+                        new_rate = measured_rate
+                    else:
+                        # wygładzanie wykładnicze - nowsze pomiary ważą
+                        # więcej, ale pojedynczy dziwny wynik nie zepsuje
+                        # od razu całej historii
+                        new_rate = prev_rate * 0.7 + measured_rate * 0.3
+                    zstate["learned_rate_mmh"] = round(new_rate, 2)
+                    zstate["learned_rate_samples"] = min(prev_samples + 1, 999)
+                    zstate["last_measured_rate_mmh"] = round(measured_rate, 2)
+                    _LOGGER.info(
+                        "Strefa %s: samo-kalibracja wydajności - zmierzono %.1f mm/h "
+                        "(uśredniona: %.1f mm/h, próbka #%s)",
+                        zid, measured_rate, new_rate, zstate["learned_rate_samples"],
+                    )
+        self._data.get("flow_start_time", {}).pop(str(zid), None)
 
-            # statystyki zużycia wody + data ostatniego podlewania (do bramki
-            # minimalnego odstępu między podlewaniami)
-            liters_delivered = max(0.0, depth_applied) * zone.get("area_m2", 0.0)
-            if liters_delivered > 0:
-                self._maybe_roll_water_stats_month()
-                self._maybe_roll_water_stats_year()
-                # zaokrąglenie do 0,1 L (nie 0,01) - to faktyczna, prawdziwa
-                # granica precyzji typowego licznika wody (device_class water),
-                # który sam raportuje objętość w m³ z ograniczoną liczbą miejsc
-                # po przecinku (np. 0,0001 m³ = 0,1 L) - druga cyfra po przecinku
-                # sugerowałaby precyzję, której odczyt fizycznie nie ma
-                zstate["water_today_l"] = round(zstate.get("water_today_l", 0.0) + liters_delivered, 1)
-                zstate["water_month_l"] = round(zstate.get("water_month_l", 0.0) + liters_delivered, 1)
-                zstate["water_year_l"] = round(zstate.get("water_year_l", 0.0) + liters_delivered, 1)
-                zstate["water_last_watering_l"] = round(liters_delivered, 1)
-                zstate["last_watering_at"] = dt_util.now().isoformat()
-                if zstate.get("current_run_source") == "scheduled":
-                    # osobna migawka TYLKO dla podlewań z harmonogramu integracji
-                    # (zatwierdzenie/approve_all, sekwencja przed wschodem, stadia
-                    # wzrostu) - w odróżnieniu od "ostatniego podlewania" wyżej,
-                    # które aktualizuje KAŻDE uruchomienie, także ręczny test
-                    # usługą run_zone - dzięki temu krótkie testy nie zacierają
-                    # informacji, kiedy strefa faktycznie ostatnio podlewała
-                    # zgodnie z harmonogramem i ile wtedy zużyła wody
-                    zstate["water_last_scheduled_watering_l"] = round(liters_delivered, 1)
-                    zstate["last_scheduled_watering_at"] = dt_util.now().isoformat()
-                self._data["water_today_total_l"] = round(
-                    self._data.get("water_today_total_l", 0.0) + liters_delivered, 1
-                )
-                self._data["water_month_total_l"] = round(
-                    self._data.get("water_month_total_l", 0.0) + liters_delivered, 1
-                )
-                self._data["water_year_total_l"] = round(
-                    self._data.get("water_year_total_l", 0.0) + liters_delivered, 1
-                )
-                zstate["last_watered"] = dt_util.now().date().isoformat()
+        zstate["smd"] = max(0.0, zstate.get("smd", 0.0) - depth_applied)
+        zstate["smd_projected"] = max(0.0, zstate.get("smd_projected", 0.0) - depth_applied)
+        zstate["pending_mm"] = 0.0
+        zstate["pending_min"] = 0
+        zstate["status"] = ZONE_STATUS_DONE
+        self._data["flow_start"].pop(str(zid), None)
+        self._compute_projected_status(zid)
 
-            # niezależnie od tego, czy cokolwiek zmierzono - koniec sesji,
-            # więc nie zostawiaj informacji o źródle na potrzeby KOLEJNEGO,
-            # niepowiązanego przełączenia zaworu (np. ręcznego w HA)
-            zstate["current_run_source"] = None
+        # statystyki zużycia wody + data ostatniego podlewania (do bramki
+        # minimalnego odstępu między podlewaniami)
+        liters_delivered = max(0.0, depth_applied) * zone.get("area_m2", 0.0)
+        if liters_delivered > 0:
+            self._maybe_roll_water_stats_month()
+            self._maybe_roll_water_stats_year()
+            # zaokrąglenie do 0,1 L (nie 0,01) - to faktyczna, prawdziwa
+            # granica precyzji typowego licznika wody (device_class water),
+            # który sam raportuje objętość w m³ z ograniczoną liczbą miejsc
+            # po przecinku (np. 0,0001 m³ = 0,1 L) - druga cyfra po przecinku
+            # sugerowałaby precyzję, której odczyt fizycznie nie ma
+            zstate["water_today_l"] = round(zstate.get("water_today_l", 0.0) + liters_delivered, 1)
+            zstate["water_month_l"] = round(zstate.get("water_month_l", 0.0) + liters_delivered, 1)
+            zstate["water_year_l"] = round(zstate.get("water_year_l", 0.0) + liters_delivered, 1)
+            zstate["water_last_watering_l"] = round(liters_delivered, 1)
+            zstate["last_watering_at"] = dt_util.now().isoformat()
+            if zstate.get("current_run_source") == "scheduled":
+                # osobna migawka TYLKO dla podlewań z harmonogramu integracji
+                # (zatwierdzenie/approve_all, sekwencja przed wschodem, stadia
+                # wzrostu) - w odróżnieniu od "ostatniego podlewania" wyżej,
+                # które aktualizuje KAŻDE uruchomienie, także ręczny test
+                # usługą run_zone - dzięki temu krótkie testy nie zacierają
+                # informacji, kiedy strefa faktycznie ostatnio podlewała
+                # zgodnie z harmonogramem i ile wtedy zużyła wody
+                zstate["water_last_scheduled_watering_l"] = round(liters_delivered, 1)
+                zstate["last_scheduled_watering_at"] = dt_util.now().isoformat()
+            self._data["water_today_total_l"] = round(
+                self._data.get("water_today_total_l", 0.0) + liters_delivered, 1
+            )
+            self._data["water_month_total_l"] = round(
+                self._data.get("water_month_total_l", 0.0) + liters_delivered, 1
+            )
+            self._data["water_year_total_l"] = round(
+                self._data.get("water_year_total_l", 0.0) + liters_delivered, 1
+            )
+            zstate["last_watered"] = dt_util.now().date().isoformat()
 
-            self.hass.async_create_task(self._async_persist())
-            self.async_set_updated_data(self._data)
+        # niezależnie od tego, czy cokolwiek zmierzono - koniec sesji,
+        # więc nie zostawiaj informacji o źródle na potrzeby KOLEJNEGO,
+        # niepowiązanego przełączenia zaworu (np. ręcznego w HA)
+        zstate["current_run_source"] = None
+
+        self.hass.async_create_task(self._async_persist())
+        self.async_set_updated_data(self._data)
 
     def _maybe_roll_water_stats_month(self) -> None:
         current_month = dt_util.now().strftime("%Y-%m")
@@ -2338,7 +2532,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
 
         STEROWANIE JEST OBJĘTOŚCIOWE, nie czasowe: `depth_mm` etapu (patrz
         const.py PLANTS) to STAŁA ilość wody dla danej rośliny/stadium,
-        NIEZALEŻNA od strefy. Przekazywana jest do _async_run_zone_serialized
+        z katalogu, niezależna od strefy - CHYBA że strefa ma ustawioną ręczną
+        korektę (ZONE_FIELD_GERMINATION_DEPTH_OVERRIDE_MM /
+        ZONE_FIELD_YOUNG_DEPTH_OVERRIDE_MM, patrz _build_zone_config), która ją
+        wtedy całkowicie zastępuje dla tej jednej strefy. Przekazywana jest do
+        _async_run_zone_serialized
         jako target_mm z use_volume_target=True. Jeśli strefa ma
         przepływomierz (i nie ma wyłączonego 'dostosuj czas z
         przepływomierza'), zawór zamyka się dokładnie po dostarczeniu tej
@@ -2404,6 +2602,12 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
 
             frequency = max(1, int(stage_cfg.get("frequency_per_day", 1)))
             depth_mm = float(stage_cfg.get("depth_mm", 1.0))
+            # ręczna korekta tej konkretnej strefy (patrz _build_zone_config) -
+            # CAŁKOWICIE zastępuje wartość katalogową rośliny wiodącej, niezależnie
+            # od tego, która roślina akurat prowadzi harmonogram stadiów
+            depth_override_mm = (zone.get("growth_stage_depth_override_mm") or {}).get(stage)
+            if depth_override_mm is not None:
+                depth_mm = depth_override_mm
 
             # dzisiejsze, pierwsze (kotwiczone do wschodu/stałej godziny) podlewanie
             # jeszcze się nie odbyło - inna bramka czasowa niż zwykłe, stałe "strzały"

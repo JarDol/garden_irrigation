@@ -94,6 +94,11 @@ ZONE_FIELD_MAX_RUNTIME = "max_runtime_min"
 ZONE_FIELD_TIMER = "timer_entity"
 ZONE_FIELD_KC_OVERRIDE = "kc_override"
 ZONE_FIELD_MAD_OVERRIDE = "mad_override"
+# ręczna korekta depth_mm etapu wzrostu (kiełkowanie/młode) TEJ KONKRETNEJ strefy,
+# niezależna od katalogu roślin (patrz PLANTS[...]["growth_stages"] niżej) - puste
+# = użyj wartości katalogowej rośliny wiodącej (patrz coordinator._build_zone_config)
+ZONE_FIELD_GERMINATION_DEPTH_OVERRIDE_MM = "germination_depth_override_mm"
+ZONE_FIELD_YOUNG_DEPTH_OVERRIDE_MM = "young_depth_override_mm"
 ZONE_FIELD_ROOT_DEPTH_OVERRIDE_PLANT = "root_depth_override_plant"  # wybór z listy roślin już dodanych do strefy
 ZONE_FIELD_MIN_DAYS_BETWEEN = "min_days_between_watering"
 ZONE_FIELD_WIND_SENSITIVE = "wind_sensitive"

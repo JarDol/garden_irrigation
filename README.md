@@ -400,6 +400,39 @@ nie zakończyć się dokładnie o wschodzie ani o zaplanowanej godzinie startu, 
 "zacznij przed wschodem" - dostarczenie właściwej ilości wody ma pierwszeństwo przed trzymaniem
 się harmonogramu co do minuty.
 
+## Odzyskiwanie po restarcie HA
+
+Zaplanowane, ale jeszcze nierozpoczęte podlewanie (wschód/stała godzina, kolejna dawka
+dosiewki) **przetrwa restart bez żadnej interwencji** - integracja liczy te terminy jako
+bezwzględny czas zegarowy i po prostu ustawia się na nie od nowa przy każdym starcie. Restart o
+2:00 przy zaplanowanym starcie o 3:00 doczeka 3:00, nie odpali nic od razu.
+
+Osobny mechanizm chroni podlewanie, które restart **przerwał w trakcie** (zawór był otwarty,
+albo strefa była już zatwierdzona/w kolejce, gdy HA przestało działać) - uruchamiany raz, zaraz
+po starcie HA, dla każdej strefy, która wg zapisanego stanu miała dziś już wyliczone/
+zatwierdzone podlewanie:
+
+- **Zawór nadal otwarty** - integracja go nie rusza (nie wie jeszcze, ile wody zdążył
+  dostarczyć), tylko czeka, aż się zamknie. Jeśli strefa ma watchdog sprzętowy (patrz sekcja
+  wyżej), to on go w końcu zamknie; jeśli nie ma (albo się nie zdąży), integracja sama, programowo,
+  zamknie zawór po przekroczeniu tego samego twardego limitu bezpieczeństwa (`max_runtime_min`),
+  liczonego od zapamiętanego czasu otwarcia. Dostarczona ilość wody i tak zostanie poprawnie
+  rozliczona z przepływomierza, dokładnie tak jak przy normalnym zamknięciu.
+- **Zawór zamknięty, choć zapisany stan mówił "w trakcie"/"zatwierdzone"** - oznacza to, że
+  zamknął się PODCZAS gdy HA nie działało (typowo: watchdog sprzętowy zadziałał, zanim HA
+  wróciło). Integracja rozlicza dostarczoną wodę z przepływomierza (albo z szacunku czasowego,
+  jeśli strefa go nie ma) dokładnie tak, jakby zawór właśnie się zamknął, po czym sprawdza
+  świeżo, czy nadal brakuje wody.
+- **Jeśli po rozliczeniu nadal brakuje wody** - integracja wymusza dogonienie tej strefy (ten
+  sam mechanizm co ręczne zatwierdzenie: świeża kontrola deszczu/przymrozku/wiatru tuż przed
+  startem), w kolejności jedna strefa naraz (chyba że masz włączony przełącznik jednoczesnego
+  podlewania wszystkich stref).
+
+Strefy w trybie dosiewki/nowego nasadzenia nie są w ten sposób dogłaniane - ich dawki są i tak
+małe, a kolejna, pełna dawka i tak przyjdzie zgodnie z harmonogramem etapu (patrz "Dosiewka /
+nowe nasadzenie" niżej), więc dopędzanie pojedynczej przerwanej dawki niepotrzebnie
+komplikowałoby harmonogram.
+
 ## Skąd biorą się dane do liczenia ET0
 
 Metoda FAO-56 Penman-Monteith wymaga, oprócz danych z Twojej stacji pogody, dwóch dodatkowych
@@ -654,6 +687,15 @@ Jeśli strefa ma przepływomierz (i nie ma wyłączonego "Dostosuj czas podlewan
 pomiaru z przepływomierza"), zawór zamyka się dokładnie po dostarczeniu tej ilości wody - NIE
 po upływie szacowanego czasu, dokładnie tak samo jak przy normalnym podlewaniu opartym o
 deficyt SMD.
+
+**Ręczna korekta dawki per strefa:** wartość `depth_mm` z katalogu to tylko punkt startowy -
+jeśli obserwacja pokaże, że konkretna strefa (inne nasłonecznienie, inna gleba, inny mikroklimat
+niż reszta ogrodu) potrzebuje innej ilości wody na etapie kiełkowania/młodych roślin, pola
+"Ręczna korekta dawki - kiełkowanie (mm)" i "Ręczna korekta dawki - młode rośliny (mm)" przy
+danej strefie (Krok 4: szczegóły strefy) całkowicie zastępują wartość katalogową dla TEJ
+strefy, niezależnie od tego, która roślina akurat prowadzi harmonogram (patrz "Kilka roślin
+naraz w jednej strefie" niżej). Puste pole = użyj wartości z katalogu rośliny wiodącej, tak jak
+dotychczas.
 
 ### Kiedy i ile - pierwsze podlewanie dnia kontra kolejne
 
@@ -931,13 +973,19 @@ pierwszych 2-3 tygodniach obserwacji:
 - Sensor `sensor.<nazwa>_przyjete_kc` i `sensor.<nazwa>_przyjety_prog_mad` pokazują dokładnie,
   jaka wartość jest aktualnie używana i skąd się wzięła (z której rośliny albo z ręcznej
   kalibracji) - to punkt wyjścia do oceny, co warto skorygować.
+- Dla stref w trybie dosiewki/nowego nasadzenia - jeśli dawka wody etapu (kiełkowanie/młode
+  rośliny) z katalogu rośliny wiodącej nie pasuje do tej konkretnej strefy, skoryguj ją polami
+  "Ręczna korekta dawki - kiełkowanie/młode rośliny (mm)" (patrz sekcja "Dosiewka / nowe
+  nasadzenie" wyżej) - działa identycznie jak ręczna kalibracja Kc/MAD, tylko dla ilości wody na
+  etapie wzrostu.
 
 ## Rzeczy warte świadomości
 
-- Sekwencja podlewania i oczekiwanie na "obudzenie się" w trybie automatycznym działają jako
-  zadania w tle wewnątrz uruchomionego Home Assistanta - **nie** są zapisywane w bazie ani
-  odtwarzane po restarcie. Restart HA w trakcie oczekiwania na start przerywa zaplanowane
-  podlewanie na tę noc.
+- Oczekiwanie na "obudzenie się" w trybie automatycznym (wschód/stała godzina) samo w sobie
+  **przetrwa restart** - to zwykły, przeliczany od nowa przy każdym starcie punkt w czasie, nie
+  zadanie w tle, które trzeba by odtworzyć. To, co restart faktycznie może przerwać, to
+  podlewanie, które już się fizycznie rozpoczęło (zawór otwarty) w momencie restartu - dla tego
+  przypadku patrz sekcja "Odzyskiwanie po restarcie HA" wyżej.
 - Dokładny kształt danych zwracanych przez `weather.get_forecasts` może się różnić między
   integracjami pogodowymi - jeśli po skonfigurowaniu encji `weather.*` w logach pojawi się
   ostrzeżenie o nieudanym pobraniu prognozy, sprawdź ręcznie w Developer Tools → Usługi,
