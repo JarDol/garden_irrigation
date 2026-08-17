@@ -326,6 +326,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "et0_yesterday": None,
             "flow_start": {},
             "flow_start_time": {},
+            "flow_start_planned_min": {},
+            "flow_start_target_mm": {},
             "sequence_plan": None,
             "weather_forecast_cache_mm": None,
             "rain_measured_today_mm": 0.0,
@@ -342,6 +344,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         }
         self._unsub_listeners: list[Any] = []
         self._auto_trigger_unsub = None
+        # True dokładnie wtedy, gdy _async_sequence_worker aktualnie żyje w
+        # pamięci procesu (pilnuje kolejki) - po restarcie HA zawsze zaczyna
+        # jako False, co jest wykorzystywane jako sygnał "kolejka osierocona"
+        # przez _async_maybe_resume_sequence
+        self._sequence_worker_active = False
         # globalna blokada "jedna strefa naraz" - używana przez WSZYSTKIE ścieżki
         # otwierające zawór (ręczne zatwierdzenie, usługa run_zone, sekwencja
         # przed wschodem, stadia wzrostu), gdy przełącznik "zezwalaj na
@@ -800,6 +807,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             zstate.setdefault("water_last_scheduled_watering_l", None)
             zstate.setdefault("last_scheduled_watering_at", None)
         self._data.setdefault("flow_start_time", {})
+        self._data.setdefault("flow_start_planned_min", {})
+        self._data.setdefault("flow_start_target_mm", {})
         self._data.setdefault("et0_yesterday_inputs", None)
         self._data.setdefault("rain_measured_today_mm", 0.0)
         self._data.setdefault(
@@ -917,16 +926,15 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         PENDING, może legalnie trwać wiele godzin) nigdy nie zostawia takiego
         śladu, więc jest tu naturalnie pomijane bez osobnego sprawdzania.
 
-        - Zawór FIZYCZNIE otwarty: NIE dotykamy go teraz (nie wiadomo, ile
-          już dostarczono - wymuszenie czegokolwiek teraz zepsułoby pomiar).
-          Zamiast tego planujemy jednorazowe, programowe zabezpieczenie na
-          wypadek braku sprzętowego watchdoga (`timer_entity`) - twardy limit
-          max_runtime_min liczony od zapamiętanego czasu otwarcia
-          (flow_start_time, przetrwał restart) - patrz
-          _schedule_restart_recovery_deadline. Rozliczenie dostarczonej wody
+        - Zawór FIZYCZNIE otwarty: wznawiamy PEŁNE monitorowanie tą samą
+          funkcją co każde inne podlewanie (_async_run_zone_monitored, patrz
+          _async_resume_open_zone_after_restart) - seedowane odczytami sprzed
+          restartu (flow_start, flow_start_time, flow_start_planned_min,
+          flow_start_target_mm), więc sterowanie objętościowe liczy CAŁĄ
+          sesję, nie tylko czas od wznowienia. Rozliczenie dostarczonej wody
           i tak nastąpi normalnie przez _on_switch_change, gdy zawór
           faktycznie się zamknie (czy to przez watchdog sprzętowy, czy przez
-          to zabezpieczenie).
+          wznowione monitorowanie integracji).
         - Zawór zamknięty, ale mamy ślad (flow_start/flow_start_time), że
           zdążył się otworzyć: musiał się zamknąć PODCZAS gdy HA nie
           działało - żaden listener tego nie złapał na żywo. Rozliczamy
@@ -963,11 +971,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             if is_open:
                 _LOGGER.warning(
                     "Strefa %s: po restarcie HA zawór %s jest nadal otwarty (zapisany "
-                    "status: %s) - czekam aż się zamknie (watchdog sprzętowy i/lub "
-                    "programowy limit %s min)",
-                    zid, zone["switch"], zstate.get("status"), zone["max_runtime_min"],
+                    "status: %s) - wznawiam pełne monitorowanie (watchdog sprzętowy i/lub "
+                    "sterowanie objętościowe/czasowe integracji)",
+                    zid, zone["switch"], zstate.get("status"),
                 )
-                self._schedule_restart_recovery_deadline(zid)
+                self.hass.async_create_task(self._async_resume_open_zone_after_restart(zid))
                 continue
 
             _LOGGER.warning(
@@ -995,45 +1003,53 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 )
                 self.hass.async_create_task(self.async_approve_zone(zid))
 
-    def _schedule_restart_recovery_deadline(self, zid: int) -> None:
-        """Jednorazowe, programowe zabezpieczenie dla strefy, której zawór
-        jest otwarty tuż po restarcie HA - jeśli nie ma sprzętowego watchdoga
-        (`timer_entity`) na sterowniku, integracja sama zamknie zawór po
-        upłynięciu twardego limitu max_runtime_min, liczonego od zapamiętanego
-        czasu otwarcia (flow_start_time, przetrwał restart). Jeśli watchdog
-        sprzętowy istnieje i zdąży zamknąć zawór wcześniej, to zabezpieczenie
-        po prostu nic nie zrobi (sprawdza stan na żywo tuż przed ewentualnym
-        zamknięciem)."""
+    async def _async_resume_open_zone_after_restart(self, zid: int) -> None:
+        """Zawór strefy jest fizycznie otwarty tuż po restarcie HA - zamiast
+        prostego, czasowo-zamykającego timera, wznawia PEŁNE monitorowanie tą
+        samą funkcją co każde inne podlewanie (_async_run_zone_monitored), więc
+        strefa dostaje za darmo to samo, co dostałaby bez restartu: sterowanie
+        objętościowe (jeśli ma przepływomierz, z wydłużaniem do max_runtime_min
+        przy wolniejszym przepływie), ponowne uzbrojenie sprzętowego watchdoga
+        (`timer_entity` - inaczej po restarcie zostałby nietknięty, z jego
+        poprzednim, sprzed restartu, ustawieniem), obsługę pauzy deszczowej i
+        spójne rozliczenie przy zamknięciu (przez zwykłe _on_switch_change).
+
+        Punkt odniesienia dla objętości (`flow_start`) i plan sesji
+        (`flow_start_planned_min`/`flow_start_target_mm`) są odczytami SPRZED
+        restartu - dzięki temu sterowanie objętościowe liczy wodę dostarczoną
+        od PRAWDZIWEGO początku sesji, nie tylko od wznowienia (inaczej
+        policzylibyśmy drugi raz wodę, która popłynęła przed restartem).
+
+        Świadome uproszczenie: `elapsed_min` liczony jest jako pełny zegarowy
+        czas od otwarcia (flow_start_time), więc obejmuje też ewentualny czas
+        oczekiwania na ustanie deszczu, gdyby restart trafił dokładnie w takie
+        okno - dla stref ze sterowaniem objętościowym to bez znaczenia
+        (przepływomierz liczy tylko realnie dostarczoną wodę), dla stref bez
+        przepływomierza to brzeżny przypadek, świadomie pozostawiony bez
+        dodatkowej persystencji."""
         zone = self.zones[zid]
+        zstate = self._data["zones"].setdefault(str(zid), {})
         start_time_str = self._data.get("flow_start_time", {}).get(str(zid))
-        start_time = dt_util.parse_datetime(start_time_str) if start_time_str else None
-        if start_time is None:
-            # brak zapamiętanego czasu otwarcia (nie powinno się zdarzyć, skoro
-            # zawór jest otwarty, ale na wszelki wypadek - licz limit od teraz,
-            # zamiast zostawić strefę bez żadnego zabezpieczenia
-            start_time = dt_util.utcnow()
-        deadline = start_time + timedelta(minutes=zone["max_runtime_min"])
+        start_time = dt_util.parse_datetime(start_time_str) if start_time_str else dt_util.utcnow()
+        elapsed_min = max(0.0, (dt_util.utcnow() - start_time).total_seconds() / 60)
 
-        async def _fire(_now) -> None:
-            state = self.hass.states.get(zone["switch"])
-            if state is None or not self._is_active_state(state.state):
-                return
-            _LOGGER.warning(
-                "Strefa %s: brak sprzętowego watchdoga (albo się nie zdążył) - programowo "
-                "zamykam zawór %s po przekroczeniu limitu bezpieczeństwa %s min od restartu HA",
-                zid, zone["switch"], zone["max_runtime_min"],
-            )
-            domain = zone["switch"].split(".")[0]
-            close_service = "close_valve" if domain == "valve" else "turn_off"
-            await self.hass.services.async_call(
-                domain, close_service, {"entity_id": zone["switch"]}, blocking=True
-            )
+        planned_min = self._data.get("flow_start_planned_min", {}).get(str(zid)) or zone["max_runtime_min"]
+        remaining_min = max(1, math.ceil(planned_min - elapsed_min))
+        target_mm = self._data.get("flow_start_target_mm", {}).get(str(zid))
+        session_start_flow = self._data.get("flow_start", {}).get(str(zid))
+        source = zstate.get("current_run_source") or "scheduled"
 
-        self._unsub_listeners.append(
-            async_track_point_in_time(
-                self.hass, _fire, max(deadline, dt_util.utcnow() + timedelta(seconds=2))
-            )
+        _LOGGER.warning(
+            "Strefa %s: po restarcie HA zawór %s nadal otwarty - wznawiam pełne "
+            "monitorowanie (minęło %.1f min, plan zakładał ok. %s min%s)",
+            zid, zone["switch"], elapsed_min, remaining_min,
+            ", sterowanie objętościowe aktywne" if zone.get("flow_sensor") else "",
         )
+        async with self._async_zone_run_gate():
+            await self._async_run_zone_monitored(
+                zid, remaining_min, source=source, target_mm=target_mm,
+                resume_session_start_flow=session_start_flow, resume_elapsed_min=elapsed_min,
+            )
 
     async def _async_persist(self, _now=None) -> None:
         await self._store.async_save(self._data)
@@ -1867,6 +1883,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                         zid, measured_rate, new_rate, zstate["learned_rate_samples"],
                     )
         self._data.get("flow_start_time", {}).pop(str(zid), None)
+        self._data.get("flow_start_planned_min", {}).pop(str(zid), None)
+        self._data.get("flow_start_target_mm", {}).pop(str(zid), None)
 
         zstate["smd"] = max(0.0, zstate.get("smd", 0.0) - depth_applied)
         zstate["smd_projected"] = max(0.0, zstate.get("smd_projected", 0.0) - depth_applied)
@@ -1913,6 +1931,13 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             )
             zstate["last_watered"] = dt_util.now().date().isoformat()
 
+        # jeśli ta strefa była częścią sekwencji przed wschodem, przerwanej
+        # restartem HA (worker w pamięci już nie żyje) - wznów resztę kolejki
+        # TERAZ, zanim wyczyścimy poniżej current_run_source. W normalnej
+        # pracy (worker wciąż żyje) to i tak nic nie zrobi - patrz
+        # _async_maybe_resume_sequence
+        self.hass.async_create_task(self._async_maybe_resume_sequence(zid))
+
         # niezależnie od tego, czy cokolwiek zmierzono - koniec sesji,
         # więc nie zostawiaj informacji o źródle na potrzeby KOLEJNEGO,
         # niepowiązanego przełączenia zaworu (np. ręcznego w HA)
@@ -1920,6 +1945,59 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
 
         self.hass.async_create_task(self._async_persist())
         self.async_set_updated_data(self._data)
+
+    async def _async_maybe_resume_sequence(self, closed_zid: int) -> None:
+        """Wołane po KAŻDYM rozliczonym zamknięciu zaworu (_account_valve_closed) -
+        zarówno żywym (_on_switch_change), jak i odtworzonym po restarcie HA
+        (_async_recover_after_restart). Jeśli właśnie zamknięta strefa była
+        częścią sekwencji przed wschodem (`sequence_plan`), a pilnujący jej
+        `_async_sequence_worker` już nie żyje (restart HA zabił tę pętlę w
+        pamięci) - wznawia resztę kolejki od zera, tak jakby worker po prostu
+        przeszedł do następnej strefy.
+
+        W normalnej pracy (worker wciąż żyje, sam przechodzi do kolejnej
+        strefy w swojej pętli) `self._sequence_worker_active` jest True, więc
+        ta funkcja nic nie robi - unika to podwójnego otwierania tej samej
+        strefy.
+
+        Rozpoznanie "to była TA sekwencja" po ID strefy w `sequence_plan["zones"]`,
+        nie po `current_run_source == "scheduled"` - to pole ustawiają też
+        stadia wzrostu (dosiewka) i ręczne zatwierdzenie/dogonienie po
+        restarcie (async_approve_zone), które mają WŁASNE, niezależne
+        harmonogramy i nie powinny wyzwalać wznowienia TEJ kolejki."""
+        plan = self._data.get("sequence_plan")
+        if not plan or plan.get("status") != "running" or self._sequence_worker_active:
+            return
+        plan_zone_ids = {z["zone_id"] for z in plan.get("zones", [])}
+        if closed_zid not in plan_zone_ids:
+            return
+
+        remaining: list[tuple[int, int]] = []
+        for zid_str, zstate in self._data["zones"].items():
+            if int(zid_str) not in plan_zone_ids:
+                continue
+            if zstate.get("status") == ZONE_STATUS_PENDING and zstate.get("pending_min", 0) > 0:
+                remaining.append((int(zid_str), int(zstate["pending_min"])))
+
+        if not remaining:
+            plan["status"] = "done"
+            await self._async_persist()
+            self.async_set_updated_data(self._data)
+            return
+
+        # ta sama przerwa tranzycyjna, jakiej normalna sekwencja używa między
+        # krokami (_async_sequence_worker_body) - żeby wznowienie po restarcie
+        # nie otwierało kolejnej strefy dosłownie natychmiast po poprzedniej
+        transition_delay_sec = int(
+            self.cfg.get(CONF_ZONE_TRANSITION_DELAY_SEC, DEFAULT_ZONE_TRANSITION_DELAY_SEC)
+        )
+        start_time = dt_util.now() + timedelta(seconds=transition_delay_sec)
+        _LOGGER.warning(
+            "Sekwencja przed wschodem: wznawiam %s pozostałych stref po restarcie HA (worker w "
+            "pamięci nie przetrwał restartu) - kolejna strefa startuje za %s s",
+            len(remaining), transition_delay_sec,
+        )
+        self.hass.async_create_task(self._async_sequence_worker(remaining, start_time))
 
     def _maybe_roll_water_stats_month(self) -> None:
         current_month = dt_util.now().strftime("%Y-%m")
@@ -2833,6 +2911,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
     async def _async_run_zone_monitored(
         self, zid: int, minutes: int, use_volume_target: bool = True, source: str = "manual",
         target_mm: float | None = None,
+        resume_session_start_flow: float | None = None,
+        resume_elapsed_min: float = 0.0,
     ) -> bool:
         """Otwiera zawor i pilnuje go az do zakonczenia, sprawdzajac co
         `rain_pause_check_interval_min` minut zarowno deszcz, jak i (jesli
@@ -2860,7 +2940,14 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         i faktyczny czas - widoczne w atrybutach sensora statusu strefy.
 
         Zwraca True, jesli strefa zostala w pelni podlana (od razu albo po
-        wznowieniu), False jesli poddano sie z powodu dlugotrwalego deszczu."""
+        wznowieniu), False jesli poddano sie z powodu dlugotrwalego deszczu.
+
+        `resume_session_start_flow`/`resume_elapsed_min` - używane WYŁĄCZNIE
+        przez _async_resume_open_zone_after_restart, kiedy zawór jest już
+        fizycznie otwarty (restart HA w trakcie podlewania) - seedują punkt
+        odniesienia objętości i dotychczas upłynięty czas SPRZED restartu,
+        żeby sterowanie objętościowe liczyło całą sesję, a nie tylko czas od
+        wznowienia."""
         zone = self.zones.get(zid)
         if not zone:
             return True
@@ -2892,8 +2979,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             and bool(target_liters)
             and target_liters > 0
         )
-        session_start_flow = None
-        total_elapsed_min = 0.0
+        session_start_flow = resume_session_start_flow
+        total_elapsed_min = resume_elapsed_min
 
         while remaining_min > 0:
             zstate = self._data["zones"].setdefault(str(zid), {})
@@ -2926,7 +3013,13 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 except Exception as err:  # noqa: BLE001 - nie blokuj podlewania z powodu watchdoga
                     _LOGGER.warning("Nie udalo sie ustawic watchdog timera dla strefy %s: %s", zid, err)
 
-            await self.hass.services.async_call(domain, open_service, {"entity_id": zone["switch"]}, blocking=True)
+            # zawór może już być fizycznie otwarty (wznowienie monitorowania po
+            # restarcie HA, patrz _async_resume_open_zone_after_restart) - nie
+            # wysyłaj wtedy zbędnego polecenia otwarcia do już otwartego zaworu
+            state = self.hass.states.get(zone["switch"])
+            already_open = state is not None and self._is_active_state(state.state)
+            if not already_open:
+                await self.hass.services.async_call(domain, open_service, {"entity_id": zone["switch"]}, blocking=True)
 
             verify_timeout = int(
                 self.cfg.get(CONF_VALVE_VERIFY_TIMEOUT_SEC, DEFAULT_VALVE_VERIFY_TIMEOUT_SEC)
@@ -2948,6 +3041,17 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 self.async_set_updated_data(self._data)
                 return True
             self._delete_issue(f"valve_open_failed_zone_{zid}")
+
+            # zapamiętaj oryginalny plan CAŁEJ sesji (nietknięty przez późniejsze
+            # przeliczenia pending_min) - jedyny sposób, żeby po restarcie HA
+            # odzyskiwanie (_async_resume_open_zone_after_restart) wiedziało,
+            # kiedy ta strefa MIAŁA się skończyć, zamiast zgadywać z
+            # max_runtime_min. setdefault (NIE nadpisanie!) - przy wznowieniu
+            # po restarcie `estimated_min` to już tylko "ile ZOSTAŁO", nie
+            # oryginalny pełny plan; nadpisanie zepsułoby odzyskiwanie przy
+            # KOLEJNYM restarcie tej samej sesji
+            self._data.setdefault("flow_start_planned_min", {}).setdefault(str(zid), estimated_min)
+            self._data.setdefault("flow_start_target_mm", {}).setdefault(str(zid), target_mm)
 
             # przy pierwszym (nie po pauzie deszczowej) otwarciu tej sesji -
             # zapamietaj odczyt przeplywomierza jako punkt odniesienia dla
@@ -3131,6 +3235,10 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             # wodociągu już dostarczona w tej sesji jest liczona osobno,
             # przez session_start_flow, i tu w ogóle nie jest ruszana)
             target_mm = max(0.0, target_mm - rain_during_pause_mm)
+            # tu, w odróżnieniu od pierwszego zapisu wyżej, CELOWO nadpisujemy
+            # (nie setdefault) - to legalna, bieżąca korekta celu TEJ sesji po
+            # realnym deszczu, nie próba odtworzenia planu po restarcie
+            self._data.setdefault("flow_start_target_mm", {})[str(zid)] = target_mm
             target_liters = target_mm * zone["area_m2"] if zone.get("area_m2") else None
             use_volume_control = (
                 use_volume_target
@@ -3169,6 +3277,17 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         return True
 
     async def _async_sequence_worker(self, queue: list[tuple[int, int]], start_time: datetime) -> None:
+        # _sequence_worker_active pilnuje tego jako sygnał "kolejka ma kto
+        # pilnować" dla _async_maybe_resume_sequence - musi obejmować też
+        # początkowe oczekiwanie na start_time, bo restart HA w trakcie tego
+        # oczekiwania też osierociłby kolejkę
+        self._sequence_worker_active = True
+        try:
+            await self._async_sequence_worker_body(queue, start_time)
+        finally:
+            self._sequence_worker_active = False
+
+    async def _async_sequence_worker_body(self, queue: list[tuple[int, int]], start_time: datetime) -> None:
         delay = (start_time - dt_util.utcnow()).total_seconds()
         if delay > 0:
             await asyncio.sleep(delay)
