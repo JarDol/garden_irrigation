@@ -201,7 +201,9 @@ class ZoneDeficitSensor(CoordinatorEntity, SensorEntity):
     @property
     def extra_state_attributes(self):
         zone = self.coordinator.zones.get(self._zid, {})
+        zstate = self.coordinator.data["zones"].get(str(self._zid), {})
         available_water_mm = zone.get("awc_mm_per_m", 0) * (zone.get("root_depth_mm", 0) / 1000)
+        smd_after_rollover = zstate.get("smd_after_rollover")
         return {
             "gleba": zone.get("soil_key"),
             "rosliny": zone.get("plant_keys"),
@@ -211,6 +213,10 @@ class ZoneDeficitSensor(CoordinatorEntity, SensorEntity):
             "glebokosc_wybrana_recznie": not zone.get("root_depth_auto", True),
             "wyliczony_prog_mad": zone.get("mad"),
             "dostepna_woda_w_strefie_korzeniowej_mm": round(available_water_mm, 1),
+            "deficyt_po_ostatnim_przeliczeniu_mm": (
+                round(smd_after_rollover, 1) if smd_after_rollover is not None else None
+            ),
+            "opad_dzisiaj_uwzgledniony_mm": self.coordinator.data.get("rain_measured_today_mm", 0.0),
         }
 
 
@@ -251,10 +257,22 @@ class ZoneSoilWaterSensor(CoordinatorEntity, SensorEntity):
         smd = zstate.get("smd") or 0.0
         current = max(0.0, available_water_mm - smd)
         pct = round((current / available_water_mm) * 100, 1) if available_water_mm else None
+        smd_after_rollover = zstate.get("smd_after_rollover")
+        level_after_rollover = (
+            round(max(0.0, available_water_mm - smd_after_rollover), 1)
+            if smd_after_rollover is not None else None
+        )
         return {
             "pojemnosc_calkowita_strefy_korzeniowej_mm": round(available_water_mm, 1),
             "procent_pojemnosci": pct,
-            "info": "Dostępna woda w strefie korzeniowej minus aktualny deficyt - ile realnie wody ma teraz roślina.",
+            "poziom_po_ostatnim_przeliczeniu_mm": level_after_rollover,
+            "opad_dzisiaj_uwzgledniony_mm": self.coordinator.data.get("rain_measured_today_mm", 0.0),
+            "info": (
+                "Dostępna woda w strefie korzeniowej minus aktualny deficyt - ile realnie wody ma "
+                "teraz roślina. Wartość główna aktualizuje się na bieżąco przez cały dzień, w tym o "
+                "zmierzony opad - nie czeka do północy. 'poziom_po_ostatnim_przeliczeniu_mm' to stan "
+                "SPRZED dzisiejszego opadu (zaraz po nocnym przeliczeniu), do porównania."
+            ),
         }
 
 

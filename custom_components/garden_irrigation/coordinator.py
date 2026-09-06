@@ -309,7 +309,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 str(z): {
                     "smd": 0.0, "status": ZONE_STATUS_IDLE, "pending_mm": 0.0, "pending_min": 0,
                     "last_watered": None, "water_today_l": 0.0, "water_month_l": 0.0, "water_year_l": 0.0,
-                    "smd_projected": 0.0, "etc_budget_mm": 0.0, "etc_accrued_mm": 0.0,
+                    "smd_projected": 0.0, "smd_after_rollover": 0.0, "etc_budget_mm": 0.0, "etc_accrued_mm": 0.0,
                     "pending_mm_projected": 0.0, "pending_min_projected": 0,
                     "mad_adjusted": self.zones[z]["mad"], "etc_yesterday_mm": None,
                     "learned_rate_mmh": None, "learned_rate_samples": 0, "last_measured_rate_mmh": None,
@@ -331,6 +331,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "sequence_plan": None,
             "weather_forecast_cache_mm": None,
             "rain_measured_today_mm": 0.0,
+            "rain_measured_yesterday_mm": 0.0,
             "weather_forecast_cache_at": None,
             "rain_forecast_samples": [],  # [{"at": iso, "mm": float}] - historia świeżych odczytów prognozy, do wyliczania maksimum z ostatniego okna (łapanie krótkotrwałych skoków)
             "irrigation_paused": False,
@@ -666,6 +667,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "opad_licznik_calkowity_mm": rain_total_now,
             "opad_licznik_encja": rain_total_entity,
             "opad_zmierzony_dzisiaj_mm": self._data.get("rain_measured_today_mm", 0.0),
+            "opad_wczoraj_mm": self._data.get("rain_measured_yesterday_mm", 0.0),
             "prognoza_nocna": self._data.get("rain_forecast_nightly"),
             "prognoza_ostatnie_sprawdzenie": self._data.get("rain_forecast_last_check"),
             "wymuszenie_upal_prog_et0_mm": float(
@@ -684,6 +686,8 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 "'opad_zmierzony_dzisiaj_mm' to suma wszystkich przyrostów licznika total_rain "
                 "od ostatniej północy, faktycznie odjęta od deficytu każdej strefy na bieżąco - "
                 "resetuje się o północy, nie jest to surowy odczyt licznika. "
+                "'opad_wczoraj_mm' to migawka tej samej wartości sprzed ostatniego resetu - "
+                "ile realnie spadło poprzedniego dnia. "
                 "'prognoza_opadu_mm' to NAJŚWIEŻSZY, pojedynczy odczyt prognozy - natomiast "
                 "'prognoza_max_w_oknie_mm' (okno: 'prognoza_okno_min' minut) to MAKSIMUM z całej "
                 "ostatniej historii odczytów w tym oknie, i TO WŁAŚNIE ta wartość jest realnie "
@@ -782,6 +786,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         # funkcją, ani razu nie przeszła jeszcze przez nocne przeliczenie)
         for zid_str, zstate in self._data["zones"].items():
             zstate.setdefault("smd_projected", zstate.get("smd", 0.0))
+            zstate.setdefault("smd_after_rollover", zstate.get("smd", 0.0))
             zstate.setdefault("etc_budget_mm", 0.0)
             zstate.setdefault("etc_accrued_mm", 0.0)
             zstate.setdefault("pending_mm_projected", 0.0)
@@ -811,6 +816,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         self._data.setdefault("flow_start_target_mm", {})
         self._data.setdefault("et0_yesterday_inputs", None)
         self._data.setdefault("rain_measured_today_mm", 0.0)
+        self._data.setdefault("rain_measured_yesterday_mm", 0.0)
         self._data.setdefault(
             "dynamic_mad_enabled", self.cfg.get(CONF_DYNAMIC_MAD_ENABLED, DEFAULT_DYNAMIC_MAD_ENABLED)
         )
@@ -1402,6 +1408,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             # podlewaniu - to wyłącznie podgląd.
             etc_today_budget = etc if etc is not None else 0.0
             zstate["smd_projected"] = zstate["smd"]
+            # migawka stanu ZARAZ po nocnym przeliczeniu, PRZED jakimkolwiek
+            # dzisiejszym opadem/podlewaniem - w odróżnieniu od "smd" powyżej,
+            # nietykana przez _async_apply_measured_rain w ciągu dnia, żeby
+            # dało się na dashboardzie pokazać "stan sprzed dzisiejszego opadu"
+            zstate["smd_after_rollover"] = zstate["smd"]
             zstate["etc_budget_mm"] = etc_today_budget
             zstate["etc_accrued_mm"] = 0.0
             self._compute_projected_status(zid)
@@ -1420,6 +1431,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
         self._data["daily"] = self._empty_daily()
         self._data["date"] = today.isoformat()
         self._data["water_today_total_l"] = 0.0
+        self._data["rain_measured_yesterday_mm"] = self._data.get("rain_measured_today_mm", 0.0)
         self._data["rain_measured_today_mm"] = 0.0
         for zstate in self._data["zones"].values():
             zstate["water_today_l"] = 0.0

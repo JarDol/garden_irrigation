@@ -22,6 +22,16 @@ views:
             name: Next sequence start
           - entity: sensor.garden_irrigation_et0_yesterday
             name: ET0 (yesterday)
+          - type: attribute
+            entity: sensor.garden_irrigation_weather_inputs
+            attribute: opad_zmierzony_dzisiaj_mm
+            name: Rain today (since midnight)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_weather_inputs
+            attribute: opad_wczoraj_mm
+            name: Rain yesterday
+            suffix: " mm"
           - entity: binary_sensor.garden_irrigation_any_zone_rain_paused
             name: Paused due to rain
 
@@ -54,6 +64,13 @@ views:
     path: sensors
     icon: mdi:chart-box-outline
     cards:
+      - type: markdown
+        content: >
+          **Water deficit / Water in soil** update live throughout the day,
+          including today's measured rain - they don't wait until midnight.
+          The three extra rows per zone ("after last calculation", "rain
+          today") show the state BEFORE today's rain, for comparison.
+
       - type: entities
         title: Zone 1
         entities:
@@ -63,6 +80,21 @@ views:
             name: Water deficit
           - entity: sensor.garden_irrigation_zone_01_soil_water_level
             name: Water in soil
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_01_soil_water_deficit
+            attribute: deficyt_po_ostatnim_przeliczeniu_mm
+            name: Deficit after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_01_soil_water_level
+            attribute: poziom_po_ostatnim_przeliczeniu_mm
+            name: Water in soil after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_01_soil_water_level
+            attribute: opad_dzisiaj_uwzgledniony_mm
+            name: Rain today (already included above)
+            suffix: " mm"
           - entity: sensor.garden_irrigation_zone_01_kc_value
             name: Kc
           - entity: sensor.garden_irrigation_zone_01_mad_threshold
@@ -105,6 +137,21 @@ views:
             name: Water deficit
           - entity: sensor.garden_irrigation_zone_02_soil_water_level
             name: Water in soil
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_02_soil_water_deficit
+            attribute: deficyt_po_ostatnim_przeliczeniu_mm
+            name: Deficit after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_02_soil_water_level
+            attribute: poziom_po_ostatnim_przeliczeniu_mm
+            name: Water in soil after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_02_soil_water_level
+            attribute: opad_dzisiaj_uwzgledniony_mm
+            name: Rain today (already included above)
+            suffix: " mm"
           - entity: sensor.garden_irrigation_zone_02_kc_value
             name: Kc
           - entity: sensor.garden_irrigation_zone_02_mad_threshold
@@ -147,6 +194,21 @@ views:
             name: Water deficit
           - entity: sensor.garden_irrigation_zone_03_soil_water_level
             name: Water in soil
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_03_soil_water_deficit
+            attribute: deficyt_po_ostatnim_przeliczeniu_mm
+            name: Deficit after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_03_soil_water_level
+            attribute: poziom_po_ostatnim_przeliczeniu_mm
+            name: Water in soil after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_03_soil_water_level
+            attribute: opad_dzisiaj_uwzgledniony_mm
+            name: Rain today (already included above)
+            suffix: " mm"
           - entity: sensor.garden_irrigation_zone_03_kc_value
             name: Kc
           - entity: sensor.garden_irrigation_zone_03_mad_threshold
@@ -189,6 +251,21 @@ views:
             name: Water deficit
           - entity: sensor.garden_irrigation_zone_04_soil_water_level
             name: Water in soil
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_04_soil_water_deficit
+            attribute: deficyt_po_ostatnim_przeliczeniu_mm
+            name: Deficit after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_04_soil_water_level
+            attribute: poziom_po_ostatnim_przeliczeniu_mm
+            name: Water in soil after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_04_soil_water_level
+            attribute: opad_dzisiaj_uwzgledniony_mm
+            name: Rain today (already included above)
+            suffix: " mm"
           - entity: sensor.garden_irrigation_zone_04_kc_value
             name: Kc
           - entity: sensor.garden_irrigation_zone_04_mad_threshold
@@ -231,6 +308,21 @@ views:
             name: Water deficit
           - entity: sensor.garden_irrigation_zone_05_soil_water_level
             name: Water in soil
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_05_soil_water_deficit
+            attribute: deficyt_po_ostatnim_przeliczeniu_mm
+            name: Deficit after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_05_soil_water_level
+            attribute: poziom_po_ostatnim_przeliczeniu_mm
+            name: Water in soil after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_05_soil_water_level
+            attribute: opad_dzisiaj_uwzgledniony_mm
+            name: Rain today (already included above)
+            suffix: " mm"
           - entity: sensor.garden_irrigation_zone_05_kc_value
             name: Kc
           - entity: sensor.garden_irrigation_zone_05_mad_threshold
@@ -273,6 +365,21 @@ views:
             name: Water deficit
           - entity: sensor.garden_irrigation_zone_06_soil_water_level
             name: Water in soil
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_06_soil_water_deficit
+            attribute: deficyt_po_ostatnim_przeliczeniu_mm
+            name: Deficit after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_06_soil_water_level
+            attribute: poziom_po_ostatnim_przeliczeniu_mm
+            name: Water in soil after last calculation (last night)
+            suffix: " mm"
+          - type: attribute
+            entity: sensor.garden_irrigation_zone_06_soil_water_level
+            attribute: opad_dzisiaj_uwzgledniony_mm
+            name: Rain today (already included above)
+            suffix: " mm"
           - entity: sensor.garden_irrigation_zone_06_kc_value
             name: Kc
           - entity: sensor.garden_irrigation_zone_06_mad_threshold
