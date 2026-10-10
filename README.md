@@ -937,8 +937,9 @@ momencie dnia.
   to samo, ale WYŁĄCZNIE dla podlewań z harmonogramu integracji (zatwierdzenie/`approve_all`,
   sekwencja przed wschodem, stadia wzrostu) - ręczne testy `run_zone` go nie nadpisują
 - `sensor.laczne_zuzycie_wody_dzis` / `_w_tym_miesiacu` / `_w_tym_roku` (litry, cały ogród)
-- `sensor.garden_irrigation_total_water_last` - suma ostatniego pojedynczego podlewania KAŻDEJ
-  strefy z osobna (niekoniecznie ten sam dzień dla wszystkich), z rozbiciem per strefa w atrybutach
+- `sensor.garden_irrigation_total_water_last` - suma zużycia ze wszystkich podlań ze stref w dniu
+  ostatniego podlewania (cała sesja dzienna); atrybuty pokazują datę i czas ostatniego podlewania.
+  Ostatnie pojedyncze zużycie każdej strefy osobno pokazują sensory per strefa powyżej.
 - per strefa `sensor.<nazwa>_stadium_wzrostu` - stan dosiewki/nowego nasadzenia (patrz sekcja
   "Dosiewka / nowe nasadzenie (stadia wzrostu)")
 

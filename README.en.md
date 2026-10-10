@@ -934,9 +934,10 @@ situation at any given moment of the day.
   waterings coming from the integration's own schedule (approval/`approve_all`, the pre-sunrise
   sequence, growth stages) - manual `run_zone` tests never overwrite it
 - `sensor.total_water_today` / `_this_month` / `_this_year` (liters, whole garden)
-- `sensor.garden_irrigation_total_water_last` - the sum of the most recent single watering of
-  EVERY zone individually (not necessarily the same day for all of them), with a per-zone
-  breakdown in the attributes
+- `sensor.garden_irrigation_total_water_last` - total water used by all zones on the date of the
+  latest watering (the full daily watering session); attributes show the date and most recent
+  watering time. The most recent individual watering for each zone is available from the per-zone
+  sensors above.
 - per zone, `sensor.<zone>_growth_stage` - the new-planting/reseeding state (see "New planting /
   reseeding (growth stages)")
 

@@ -342,6 +342,9 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "water_today_total_l": 0.0,
             "water_month_total_l": 0.0,
             "water_year_total_l": 0.0,
+            "water_last_session_date": None,
+            "water_last_session_total_l": None,
+            "water_last_session_at": None,
         }
         self._unsub_listeners: list[Any] = []
         self._auto_trigger_unsub = None
@@ -821,6 +824,11 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             "dynamic_mad_enabled", self.cfg.get(CONF_DYNAMIC_MAD_ENABLED, DEFAULT_DYNAMIC_MAD_ENABLED)
         )
         self._data.setdefault("allow_simultaneous_watering", False)
+        self._data.setdefault("water_last_session_date", None)
+        self._data.setdefault("water_last_session_total_l", None)
+        self._data.setdefault("water_last_session_at", None)
+        if self._data.get("water_last_session_date") is None:
+            self._seed_last_session_from_zones()
 
         # sprawdź, czy skonfigurowane encje stref faktycznie istnieją - jeśli
         # nie, zgłoś to jako Repairs zamiast po cichu milczeć w logach.
@@ -1920,8 +1928,17 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             zstate["water_today_l"] = round(zstate.get("water_today_l", 0.0) + liters_delivered, 1)
             zstate["water_month_l"] = round(zstate.get("water_month_l", 0.0) + liters_delivered, 1)
             zstate["water_year_l"] = round(zstate.get("water_year_l", 0.0) + liters_delivered, 1)
+            watered_at = dt_util.now()
+            watering_date = watered_at.date().isoformat()
+            if self._data.get("water_last_session_date") != watering_date:
+                self._data["water_last_session_date"] = watering_date
+                self._data["water_last_session_total_l"] = 0.0
+            self._data["water_last_session_total_l"] = round(
+                (self._data.get("water_last_session_total_l") or 0.0) + liters_delivered, 1
+            )
+            self._data["water_last_session_at"] = watered_at.isoformat()
             zstate["water_last_watering_l"] = round(liters_delivered, 1)
-            zstate["last_watering_at"] = dt_util.now().isoformat()
+            zstate["last_watering_at"] = watered_at.isoformat()
             if zstate.get("current_run_source") == "scheduled":
                 # osobna migawka TYLKO dla podlewań z harmonogramu integracji
                 # (zatwierdzenie/approve_all, sekwencja przed wschodem, stadia
@@ -1931,7 +1948,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
                 # informacji, kiedy strefa faktycznie ostatnio podlewała
                 # zgodnie z harmonogramem i ile wtedy zużyła wody
                 zstate["water_last_scheduled_watering_l"] = round(liters_delivered, 1)
-                zstate["last_scheduled_watering_at"] = dt_util.now().isoformat()
+                zstate["last_scheduled_watering_at"] = watered_at.isoformat()
             self._data["water_today_total_l"] = round(
                 self._data.get("water_today_total_l", 0.0) + liters_delivered, 1
             )
@@ -1941,7 +1958,7 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             self._data["water_year_total_l"] = round(
                 self._data.get("water_year_total_l", 0.0) + liters_delivered, 1
             )
-            zstate["last_watered"] = dt_util.now().date().isoformat()
+            zstate["last_watered"] = watering_date
 
         # jeśli ta strefa była częścią sekwencji przed wschodem, przerwanej
         # restartem HA (worker w pamięci już nie żyje) - wznów resztę kolejki
@@ -2010,6 +2027,29 @@ class GardenIrrigationCoordinator(DataUpdateCoordinator):
             len(remaining), transition_delay_sec,
         )
         self.hass.async_create_task(self._async_sequence_worker(remaining, start_time))
+
+    def _seed_last_session_from_zones(self) -> None:
+        """Jednorazowe wypełnienie licznika ostatniej sesji po aktualizacji z
+        wersji, która go nie śledziła - suma ostatniego podlewania tych stref,
+        które podlewały w dniu najnowszego podlewania. Przybliżenie (strefa
+        podlewana tego dnia dwa razy liczy się raz), ale lepsze niż 'unknown'
+        aż do następnego podlewania."""
+        latest: dict[str, tuple[datetime, float]] = {}
+        for zid, zstate in self._data.get("zones", {}).items():
+            liters = zstate.get("water_last_watering_l")
+            at = dt_util.parse_datetime(zstate.get("last_watering_at") or "")
+            if liters is None or at is None:
+                continue
+            latest[zid] = (dt_util.as_local(at), liters)
+        if not latest:
+            return
+        last_at = max(at for at, _ in latest.values())
+        session_date = last_at.date()
+        self._data["water_last_session_date"] = session_date.isoformat()
+        self._data["water_last_session_total_l"] = round(
+            sum(liters for at, liters in latest.values() if at.date() == session_date), 1
+        )
+        self._data["water_last_session_at"] = last_at.isoformat()
 
     def _maybe_roll_water_stats_month(self) -> None:
         current_month = dt_util.now().strftime("%Y-%m")

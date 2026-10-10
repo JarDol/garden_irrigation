@@ -856,13 +856,7 @@ class TotalWaterTodaySensor(CoordinatorEntity, SensorEntity):
 
 
 class TotalWaterLastWateringSensor(CoordinatorEntity, SensorEntity):
-    """Suma tego, co KAŻDA strefa zużyła podczas SWOJEGO WŁASNEGO ostatniego
-    podlewania - NIE to samo co 'ostatnia sekwencja z jednego dnia'. Jeśli
-    strefy podlewały się różnego dnia/o różnej porze, ta wartość i tak sumuje
-    ich najnowsze pojedyncze zdarzenia, niezależnie od tego kiedy się
-    odbyły - to prosta suma bieżących wartości sensorów
-    '<strefa> - zużycie wody podczas ostatniego podlewania', liczona na żywo,
-    nie osobno śledzony, kumulowany licznik jak Dziś/Miesiąc/Rok."""
+    """Suma zużycia ze wszystkich podlań w dniu ostatniego podlewania."""
 
     _attr_icon = "mdi:water-outline"
     _attr_native_unit_of_measurement = "L"
@@ -870,29 +864,20 @@ class TotalWaterLastWateringSensor(CoordinatorEntity, SensorEntity):
     def __init__(self, coordinator: GardenIrrigationCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{entry.entry_id}_water_last_watering_total"
-        self._attr_name = "Łączne zużycie wody podczas ostatniego podlewania"
+        self._attr_name = "Łączne zużycie wody podczas ostatniej sesji podlewania"
         self._attr_suggested_object_id = "garden_irrigation_total_water_last"
         self.entity_id = f"sensor.{self._attr_suggested_object_id}"
         self._attr_device_info = _device_info(entry)
 
     @property
     def native_value(self):
-        total = 0.0
-        for zstate in self.coordinator.data["zones"].values():
-            total += zstate.get("water_last_watering_l") or 0.0
-        return round(total, 1)
+        return self.coordinator.data.get("water_last_session_total_l")
 
     @property
     def extra_state_attributes(self):
-        breakdown = {}
-        for zid, zone in self.coordinator.zones.items():
-            zstate = self.coordinator.data["zones"].get(str(zid), {})
-            liters = zstate.get("water_last_watering_l")
-            if liters is not None:
-                breakdown[zone["name"]] = {"litry": liters, "kiedy": zstate.get("last_watering_at")}
         return {
-            "rozbicie_per_strefa": breakdown,
-            "info": "Suma ostatniego pojedynczego podlewania KAŻDEJ strefy z osobna - nie musi to być ten sam dzień dla wszystkich.",
+            "data": self.coordinator.data.get("water_last_session_date"),
+            "ostatnie_podlewanie": self.coordinator.data.get("water_last_session_at"),
         }
 
 

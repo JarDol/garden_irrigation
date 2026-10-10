@@ -42,7 +42,7 @@ views:
           - entity: sensor.garden_irrigation_total_water_today
             name: Dziś
           - entity: sensor.garden_irrigation_total_water_last
-            name: Podczas ostatniego podlewania
+            name: Ostatnia sesja podlewania
           - entity: sensor.garden_irrigation_total_water_month
             name: W tym miesiącu
           - entity: sensor.garden_irrigation_total_water_year
